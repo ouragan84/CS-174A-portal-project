@@ -181,6 +181,13 @@ export class Portal_Room extends Scene {                   // **Scene_To_Texture
         texture.image.src = result_img.src;
     }
 
+    reset_texture(scratchpad, scratchpad_context, texture, result_img){
+        scratchpad_context.filltyle = "black";
+        scratchpad_context.fillRect( 0, 0,  scratchpad.width, scratchpad.width);
+        result_img.src = scratchpad.toDataURL("image/png");
+        texture.image.src = result_img.src;
+    }
+
     draw_visible_scene(context, program_state, t){
         this.shapes.box.draw(context, program_state, this.cube_1, this.materials.earth);
 
@@ -205,11 +212,6 @@ export class Portal_Room extends Scene {                   // **Scene_To_Texture
         this.shapes.circle.draw(context, program_state, basis.times(portal.screen_transform)
                 , material);
     }
-
-    // draw_portal_box(context, program_state){
-    //     this.shapes.box.draw(context, program_state, this.portal.box_transform, 
-    //         this.materials.d.override({color: this.portal.color_behind}));
-    // }
 
     draw_player(context, program_state){
         this.shapes.box.draw(context, program_state, 
@@ -260,8 +262,13 @@ export class Portal_Room extends Scene {                   // **Scene_To_Texture
         portal.basis_transform = trans;
     }
 
-    draw_portals_recursive(context, program_state, t){
+    draw_orange_portal(context, program_state, t){
 
+        if(this.portal_orange.normal.dot(this.main_camera.look_dir) > 0){
+            this.reset_texture(this.scratchpad_orange_portal, this.scratchpad_context_orange_portal, this.texture_orange_portal, this.result_img_orange_portal);
+            return;
+        }
+            
         // RENDER FROM BLUE PORTAL PERSPECTIVE, PASTE ONTO ORANGE PORTAL
 
         program_state.set_camera(this.portal_blue.camera.transform);
@@ -274,7 +281,14 @@ export class Portal_Room extends Scene {                   // **Scene_To_Texture
         this.update_texture(context, this.scratchpad_orange_portal, this.scratchpad_context_orange_portal, this.texture_orange_portal, this.result_img_orange_portal);
 
         this.clear_buffer(context, this.texture_orange_portal);
+    }
 
+    draw_blue_portal(context, program_state, t){
+
+        if(this.portal_blue.normal.dot(this.main_camera.look_dir) > 0){
+            this.reset_texture(this.scratchpad_blue_portal, this.scratchpad_context_blue_portal,  this.texture_blue_portal, this.result_img_blue_portal);
+            return;
+        }
 
         // RENDER FROM ORANGE PORTAL PERSPECTIVE, PASTE ONTO BLUE PORTAL
 
@@ -288,6 +302,12 @@ export class Portal_Room extends Scene {                   // **Scene_To_Texture
         this.update_texture(context, this.scratchpad_blue_portal, this.scratchpad_context_blue_portal, this.texture_blue_portal, this.result_img_blue_portal);
 
         this.clear_buffer(context, this.texture_blue_portal);
+    }
+
+    draw_portals_recursive(context, program_state, t){
+
+        this.draw_orange_portal(context, program_state, t);
+        this.draw_blue_portal(context, program_state, t);
 
     }
 
