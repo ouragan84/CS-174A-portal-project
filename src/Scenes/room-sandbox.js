@@ -28,6 +28,9 @@ export class Room_Sandbox extends Scene {
                 {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
         }
 
+        this.wall_transforms = this.do_walls_calc(Mat4.identity())
+        this.ground_transforms = this.do_ground_calc(Mat4.identity(), true)
+
         this.initial_camera_location = Mat4.look_at(vec3(0, 5, 20), vec3(0, 5, 0), vec3(0, 1, 0));
     }
 
@@ -61,10 +64,25 @@ export class Room_Sandbox extends Scene {
         this.draw_walls(context, program_state, Mat4.identity())
     }
 
+    draw_walls(context, program_state) {
+        for(let i = 0; i < this.wall_transforms.length; i++) {
+            this.shapes.square.draw(context, program_state, this.wall_transforms[i], this.materials.plastic)
+        }
+    }
 
-    draw_ground(context, program_state, model_transform, draw_ceiling = false) {
+    draw_ground(context, program_state) {
+        const materials = [this.materials.default.override({color: hex_color("#403837")}), this.materials.plastic]
+        for(let i = 0; i < this.ground_transforms.length; i++) {
+            for(let j = 0; j < this.ground_transforms[i].length; j++) {
+                this.shapes.square.draw(context, program_state, this.ground_transforms[i][j], materials[i])
+            }
+        }
+    }
+
+    do_ground_calc(model_transform, draw_ceiling = false) {
         const k_max = draw_ceiling ? 2 : 1;
 
+        let ground_transforms = [[],[]]
         for(let k = 0; k < k_max; k++) {
             const y = (k == 0 ? 0 : 20)
 
@@ -74,13 +92,14 @@ export class Room_Sandbox extends Scene {
                         .times(Mat4.translation(10*i, y, 10*j))
                         .times(Mat4.scale(5, 1, 5))
                         .times(Mat4.rotation(Math.PI/2, 1, 0, 0))
-                    this.shapes.square.draw(context, program_state, temp, this.materials.default.override({color: hex_color("#403837")}))
+                    ground_transforms[k].push(temp)
                 }
             }
         }
+        return ground_transforms
     }
 
-    draw_walls(context, program_state, model_transform, height = 2) {
+    do_walls_calc(model_transform, height = 2) {
         const walls = {
             right: (i, j) => {
                 return model_transform
@@ -108,14 +127,15 @@ export class Room_Sandbox extends Scene {
             }
         }
 
+        let wall_transforms = []
         for(const [_, transform] of Object.entries(walls)) {
             for(let i = -5; i < 5; i++) {
                 for(let j = 0; j < height; j++) {
-                    const wall_transform = transform(i, j)
-                    this.shapes.square.draw(context, program_state, wall_transform, this.materials.plastic)
+                    wall_transforms.push(transform(i, j))
                 }
             }
         }
+        return wall_transforms;
     }
 }
 
