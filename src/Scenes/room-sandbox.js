@@ -57,7 +57,7 @@ export class Room_Sandbox extends Scene {
         let temp = model_transform.times(Mat4.scale(0.3, 0.3, 0.3))
         this.shapes.sphere.draw(context, program_state, temp, this.materials.default.override({color: hex_color("#db0718")}))
 
-        this.draw_ground(context, program_state, Mat4.identity(), false)
+        this.draw_ground(context, program_state, Mat4.identity(), true)
         this.draw_walls(context, program_state, Mat4.identity())
     }
 
@@ -80,50 +80,40 @@ export class Room_Sandbox extends Scene {
         }
     }
 
-    draw_walls(context, program_state, model_transform) {
-        //BELOW: could be written more efficiency, refactor later
-
-        //right wall
-        for(let i = -5; i < 5; i++) {
-            for(let j = 0; j < 2; j++) {
-                let temp = model_transform
+    draw_walls(context, program_state, model_transform, height = 2) {
+        const walls = {
+            right: (i, j) => {
+                return model_transform
                     .times(Mat4.translation(45, 5+j*10, i*10))
                     .times(Mat4.scale(1, 5, 5))
                     .times(Mat4.rotation(Math.PI/2, 0, 1, 0))
-                this.shapes.square.draw(context, program_state, temp, this.materials.plastic)
-            }
-        }
-
-        //left wall
-        for(let i = -5; i < 5; i++) {
-            for(let j = 0; j < 2; j++) {
-                let temp = model_transform
+            },
+            left: (i, j) => {
+                return model_transform
                     .times(Mat4.translation(-55, 5+j*10, i*10))
                     .times(Mat4.scale(1, 5, 5))
                     .times(Mat4.rotation(Math.PI/2, 0, 1, 0))
-                this.shapes.square.draw(context, program_state, temp, this.materials.plastic)
-            }
-        }
-
-        //far wall
-        for(let i = -5; i < 5; i++) {
-            for(let j = 0; j < 2; j++) {
-                let temp = model_transform
+            },
+            far: (i, j) => {
+                return model_transform
                     .times(Mat4.translation(i*10, 5+j*10, -55))
                     .times(Mat4.scale(5, 5, 1))
                     .times(Mat4.rotation(Math.PI/2, 0, 0, 1))
-                this.shapes.square.draw(context, program_state, temp, this.materials.plastic)
-            }
-        }
-
-        //near wall
-        for(let i = -5; i < 5; i++) {
-            for(let j = 0; j < 2; j++) {
-                let temp = model_transform
+            },
+            near: (i, j) => {
+                return model_transform
                     .times(Mat4.translation(i*10, 5+j*10, 45))
                     .times(Mat4.scale(5, 5, 1))
                     .times(Mat4.rotation(Math.PI/2, 0, 0, 1))
-                this.shapes.square.draw(context, program_state, temp, this.materials.plastic)
+            }
+        }
+
+        for(const [_, transform] of Object.entries(walls)) {
+            for(let i = -5; i < 5; i++) {
+                for(let j = 0; j < height; j++) {
+                    const wall_transform = transform(i, j)
+                    this.shapes.square.draw(context, program_state, wall_transform, this.materials.plastic)
+                }
             }
         }
     }
