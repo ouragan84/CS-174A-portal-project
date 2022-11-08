@@ -13,7 +13,7 @@ export class Room_Sandbox extends Scene {
         this.shapes = {
             cube: new defs.Cube(),
             sphere: new defs.Subdivision_Sphere(4),
-            cylinder: new defs.Capped_Cylinder(1, 40, [1, 2])
+            square: new defs.Square
         };
 
         // *** Materials
@@ -53,95 +53,67 @@ export class Room_Sandbox extends Scene {
 
         let model_transform = Mat4.identity();
 
+        //sphere at origin for reference
         let temp = model_transform.times(Mat4.scale(0.3, 0.3, 0.3))
         this.shapes.sphere.draw(context, program_state, temp, this.materials.default.override({color: hex_color("#db0718")}))
 
-        this.draw_ground(context, program_state, model_transform, true)
-        this.draw_walls(context, program_state, model_transform)
+        this.draw_ground(context, program_state, Mat4.identity(), true)
+        this.draw_walls(context, program_state, Mat4.identity())
     }
 
 
     draw_ground(context, program_state, model_transform, draw_ceiling = false) {
-        let origin = Mat4.identity()
-        origin = origin.times(Mat4.scale(5, 0.05, 5))
-        for(let i = -5; i < 5; i++) {
-            for(let j = -5; j < 5; j++) {
-                let temp = origin.times(Mat4.translation(2*i, 0, 2*j))
-                this.shapes.cube.draw(context, program_state, temp, this.materials.default.override({color: hex_color("#403837")}))
-            }
-        }
+        const k_max = draw_ceiling ? 2 : 1;
 
-        //the massive y translation is required because of the y scaling above
-        if(draw_ceiling)
+        for(let k = 0; k < k_max; k++) {
+            const y = (k == 0 ? 0 : 20)
+
             for(let i = -5; i < 5; i++) {
                 for(let j = -5; j < 5; j++) {
-                    let temp = origin.times(Mat4.translation(2*i, 400, 2*j))
-                    this.shapes.cube.draw(context, program_state, temp, this.materials.default.override({color: hex_color("#403837")}))
+                    let temp = model_transform
+                        .times(Mat4.translation(10*i, y, 10*j))
+                        .times(Mat4.scale(5, 1, 5))
+                        .times(Mat4.rotation(Math.PI/2, 1, 0, 0))
+                    this.shapes.square.draw(context, program_state, temp, this.materials.default.override({color: hex_color("#403837")}))
                 }
             }
+        }
     }
 
-    draw_walls(context, program_state, model_transform) {
-        let origin = Mat4.identity()
-        //BELOW: could be written more efficiency, refactor later
-
-        //right wall
-        for(let i = -5; i < 5; i++) {
-            for(let j = 0; j < 2; j++) {
-                // model_transform = model_transform.times(Mat4.translation(-1, 1, 0))
-                //     .times(Mat4.rotation(angle, 0, 0, 1))
-                //     .times(Mat4.translation(1, 1, 0))
-
-                let temp = origin
+    draw_walls(context, program_state, model_transform, height = 2) {
+        const walls = {
+            right: (i, j) => {
+                return model_transform
                     .times(Mat4.translation(45, 5+j*10, i*10))
-                    .times(Mat4.rotation(Math.PI/2, 0, 0, 1))
-                    .times(Mat4.scale(5, 0.05, 5))
-                this.shapes.cube.draw(context, program_state, temp, this.materials.plastic)
-            }
-        }
-
-        //left wall
-        for(let i = -5; i < 5; i++) {
-            for(let j = 0; j < 2; j++) {
-                // model_transform = model_transform.times(Mat4.translation(-1, 1, 0))
-                //     .times(Mat4.rotation(angle, 0, 0, 1))
-                //     .times(Mat4.translation(1, 1, 0))
-
-                let temp = origin
+                    .times(Mat4.scale(1, 5, 5))
+                    .times(Mat4.rotation(Math.PI/2, 0, 1, 0))
+            },
+            left: (i, j) => {
+                return model_transform
                     .times(Mat4.translation(-55, 5+j*10, i*10))
-                    .times(Mat4.rotation(Math.PI/2, 0, 0, 1))
-                    .times(Mat4.scale(5, 0.05, 5))
-                this.shapes.cube.draw(context, program_state, temp, this.materials.plastic)
-            }
-        }
-
-        //far wall
-        for(let i = -5; i < 5; i++) {
-            for(let j = 0; j < 2; j++) {
-                // model_transform = model_transform.times(Mat4.translation(-1, 1, 0))
-                //     .times(Mat4.rotation(angle, 0, 0, 1))
-                //     .times(Mat4.translation(1, 1, 0))
-
-                let temp = origin
+                    .times(Mat4.scale(1, 5, 5))
+                    .times(Mat4.rotation(Math.PI/2, 0, 1, 0))
+            },
+            far: (i, j) => {
+                return model_transform
                     .times(Mat4.translation(i*10, 5+j*10, -55))
-                    .times(Mat4.rotation(Math.PI/2, 1, 0, 0))
-                    .times(Mat4.scale(5, 0.05, 5))
-                this.shapes.cube.draw(context, program_state, temp, this.materials.plastic)
+                    .times(Mat4.scale(5, 5, 1))
+                    .times(Mat4.rotation(Math.PI/2, 0, 0, 1))
+            },
+            near: (i, j) => {
+                return model_transform
+                    .times(Mat4.translation(i*10, 5+j*10, 45))
+                    .times(Mat4.scale(5, 5, 1))
+                    .times(Mat4.rotation(Math.PI/2, 0, 0, 1))
             }
         }
 
-        //near wall
-        for(let i = -5; i < 5; i++) {
-            for(let j = 0; j < 2; j++) {
-                // model_transform = model_transform.times(Mat4.translation(-1, 1, 0))
-                //     .times(Mat4.rotation(angle, 0, 0, 1))
-                //     .times(Mat4.translation(1, 1, 0))
-
-                let temp = origin
-                    .times(Mat4.translation(i*10, 5+j*10, 45))
-                    .times(Mat4.rotation(Math.PI/2, 1, 0, 0))
-                    .times(Mat4.scale(5, 0.05, 5))
-                this.shapes.cube.draw(context, program_state, temp, this.materials.plastic)
+        for(const [_, transform] of Object.entries(walls)) {
+            for(let i = -5; i < 5; i++) {
+                for(let j = 0; j < height; j++) {
+                    const wall_transform = transform(i, j)
+                    this.shapes.square.draw(context, program_state, wall_transform, this.materials.plastic)
+                }
             }
         }
     }
