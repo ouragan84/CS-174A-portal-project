@@ -62,7 +62,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.cube_1 = Mat4.translation(-4 , 1, 2);
 
         this.main_camera = {
-            pos: vec3(0, 0, 10),
+            pos: vec3(0, 1, 10),
             top: vec3(0, 1, 0),
             look_dir: null,
             transform: null,
@@ -74,7 +74,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         }
 
         this.portal_blue = {
-            pos: vec3(-5, -1, 10),
+            pos: vec3(-5, -1, 17.99),
             scale: vec3(1, 1, 1),
             normal: vec3(0, 0, -1),
             top: vec3(0, 1, 0),
@@ -211,8 +211,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             this.materials.phong.override({color: hex_color("#00FF55")}));
 
         this.shapes.box.draw(context, program_state, Mat4.identity()
-                .times(Mat4.translation(4, -2, 8))
-                .times(Mat4.scale(.5,.5,this.get_cosine_interpolation(1, 2, .8, t, 0))),
+                .times(Mat4.translation(4, .5, 8))
+                .times(Mat4.scale(.5,.5,this.get_cosine_interpolation(-2, 2, .8, t, 0))),
             this.materials.phong.override({color: hex_color("#f76d28")}));
     }
 
