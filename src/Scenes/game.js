@@ -3,14 +3,23 @@ import {defs, tiny} from '/src/lib/common.js';
 const {vec3, vec4, color, hex_color, Matrix, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
 const {Phong_Shader, Fake_Bump_Map} = defs;
 
-export class Game extends Scene {
+export class Game extends Scene {                   // **Scene_To_Texture_Demo** is a crude way of doing multi-pass rendering.
+    // We will draw a scene (containing just the left box with the striped
+    // texture) to a hidden canvas.  The hidden canvas's colors are copied
+    // to an HTML Image object, and then to one of our Textures.  Finally,
+    // we clear the buffer in the middle of display() and start over.
+    // The scene is drawn again (with a different texture) and a new box
+    // on the right side, textured with the first scene.
+    // NOTE: To use this for two-pass rendering, you simply need to write
+    // any shader that acts upon the input texture as if it were a
+    // previous rendering result.
     constructor() {               // Request the camera, shapes, and materials our Scene will need:
         super();
         this.shapes = {
             quad: new defs.Square(),
             circle: new defs.Regular_2D_Polygon(1, 48),
             box: new defs.Cube(),
-            square: new defs.Square
+            square: new defs.Square()
         }
 
         const screen_height = 600;
@@ -39,9 +48,9 @@ export class Game extends Scene {
             {
                 earth: new Material(new Fake_Bump_Map(1), {ambient: .5, texture: new Texture("src/assets/earth.gif")}),
                 blue_portal: new Material(new Textured_Portal(), {texture: this.texture_blue_portal, screen_width:screen_width,
-                    screen_height:screen_height, color:hex_color("#0066BB"), distance_start:.9, distance_end:0.1}),
+                    screen_height:screen_height, color:hex_color("#0066BB"), distance_start:.9, distance_end:0.1, is_black:0}),
                 orange_portal: new Material(new Textured_Portal(), {texture: this.texture_orange_portal, screen_width:screen_width,
-                    screen_height:screen_height, color:hex_color("#BB6600"), distance_start:.9, distance_end:0.1}),
+                    screen_height:screen_height, color:hex_color("#BB6600"), distance_start:.9, distance_end:0.1, is_black:0}),
                 phong: new Material(new Phong_Shader(), {ambient: .5}),
                 plastic: new Material(new defs.Phong_Shader(),
                     {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
@@ -53,7 +62,7 @@ export class Game extends Scene {
         this.cube_1 = Mat4.translation(-4 , 1, 2);
 
         this.main_camera = {
-            pos: vec3(0, 1, 10),
+            pos: vec3(0, 0, 10),
             top: vec3(0, 1, 0),
             look_dir: null,
             transform: null,
@@ -69,7 +78,7 @@ export class Game extends Scene {
             scale: vec3(1, 1, 1),
             normal: vec3(0, 0, -1),
             top: vec3(0, 1, 0),
-            color_behind: hex_color("#0066BB"),
+            color_behind: hex_color("#0080FF"),
             screen_transform: null,
             basis_transform: null,
             camera: {
@@ -85,7 +94,7 @@ export class Game extends Scene {
             scale: vec3(1, 1, 1),
             normal: vec3(0, 0, 1),
             top: vec3(0, 1, 0),
-            color_behind: hex_color("#BB6600"),
+            color_behind: hex_color("#FF8000"),
             screen_transform: null,
             basis_transform: null,
             camera: {
@@ -100,7 +109,6 @@ export class Game extends Scene {
         this.compute_portal_transform( this.portal_orange);
         this.wall_transforms = this.do_walls_calc(Mat4.identity())
         this.ground_transforms = this.do_ground_calc(Mat4.identity(), true)
-
     }
 
     get_cosine_interpolation(min, max, period, t, t_offset){
@@ -179,9 +187,16 @@ export class Game extends Scene {
         texture.image.src = result_img.src;
     }
 
+    reset_texture(scratchpad, scratchpad_context, texture, result_img){
+        scratchpad_context.filltyle = "black";
+        scratchpad_context.fillRect( 0, 0,  scratchpad.width, scratchpad.width);
+        result_img.src = scratchpad.toDataURL("image/png");
+        texture.image.src = result_img.src;
+    }
+
     draw_visible_scene(context, program_state, t){
-        this.draw_ground(context, program_state, Mat4.identity(), true)
-        this.draw_walls(context, program_state, Mat4.identity())
+        this.draw_ground(context, program_state)
+        this.draw_walls(context, program_state)
 
         this.shapes.box.draw(context, program_state, this.cube_1, this.materials.earth);
 
@@ -196,15 +211,13 @@ export class Game extends Scene {
             this.materials.phong.override({color: hex_color("#00FF55")}));
 
         this.shapes.box.draw(context, program_state, Mat4.identity()
-                .times(Mat4.translation(4, 0, 8))
-                .times(Mat4.scale(.5,.5,this.get_cosine_interpolation(0, 1, .8, t, 0))),
+                .times(Mat4.translation(4, -2, 8))
+                .times(Mat4.scale(.5,.5,this.get_cosine_interpolation(1, 2, .8, t, 0))),
             this.materials.phong.override({color: hex_color("#f76d28")}));
     }
 
-    draw_portal(context, program_state, portal, material, basis){
-
-        this.shapes.circle.draw(context, program_state, basis.times(portal.screen_transform)
-            , material);
+    draw_portal(context, program_state, portal, material, draw_filled=false){
+        this.shapes.circle.draw(context, program_state, portal.screen_transform, material.override({is_filled : (draw_filled?1:0)}));
     }
 
     draw_player(context, program_state){
@@ -235,12 +248,15 @@ export class Game extends Scene {
         this.main_camera.transform = Mat4.look_at(this.main_camera.pos, look_at_point, this.main_camera.top);
     }
 
-    update_portal_camera(portal, other, camera, str){
+    update_portal_camera(portal, other, camera, iteration=1){
         // const trans = this.to_basis( other.top.cross(other.normal), other.top, other.normal, other.pos)
         //     .times(Mat4.inverse(this.to_basis( portal.top.cross(portal.normal.times(-1)), portal.top, portal.normal.times(-1), portal.pos)));
 
-        const trans = Mat4.inverse(this.to_basis( portal.top.cross(portal.normal.times(-1)), portal.top, portal.normal.times(-1), portal.pos))
-            .times(this.to_basis( other.top.cross(other.normal), other.top, other.normal, other.pos));
+        let trans = Mat4.identity();
+
+        for(let i = 0; i<iteration; ++i)
+            trans = trans.times(Mat4.inverse(this.to_basis( portal.top.cross(portal.normal.times(-1)), portal.top, portal.normal.times(-1), portal.pos)))
+                .times(this.to_basis( other.top.cross(other.normal), other.top, other.normal, other.pos));
 
         // console.log(str, this.to_basis( other.top.cross(other.normal), other.top, other.normal, other.pos),
         // Mat4.inverse(this.to_basis( portal.top.cross(portal.normal.times(-1)), portal.top, portal.normal.times(-1), portal.pos)));
@@ -256,7 +272,29 @@ export class Game extends Scene {
         portal.basis_transform = trans;
     }
 
-    draw_portals_recursive(context, program_state, t){
+    draw_orange_portal(context, program_state, t){
+        if(this.portal_orange.normal.dot(this.main_camera.look_dir) > 0){
+            this.reset_texture(this.scratchpad_orange_portal, this.scratchpad_context_orange_portal, this.texture_orange_portal, this.result_img_orange_portal);
+            return;
+        }
+
+        // this.update_portal_camera(this.portal_blue, this.portal_orange, this.portal_blue.camera, 2);
+
+        // RENDER FROM BLUE PORTAL PERSPECTIVE, PASTE ONTO ORANGE PORTAL
+
+        // program_state.set_camera(this.portal_blue.camera.transform);
+        // program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
+
+        // this.draw_visible_scene(context, program_state, t);
+        // this.draw_player(context, program_state);
+        // this.draw_portal(context, program_state, this.portal_orange, this.materials.orange_portal, true);
+
+        // this.update_texture(context, this.scratchpad_orange_portal, this.scratchpad_context_orange_portal, this.texture_orange_portal, this.result_img_orange_portal);
+
+        // this.clear_buffer(context, this.texture_orange_portal);
+
+
+        this.update_portal_camera(this.portal_blue, this.portal_orange, this.portal_blue.camera, 1);
 
         // RENDER FROM BLUE PORTAL PERSPECTIVE, PASTE ONTO ORANGE PORTAL
 
@@ -265,12 +303,21 @@ export class Game extends Scene {
 
         this.draw_visible_scene(context, program_state, t);
         this.draw_player(context, program_state);
-        // this.draw_portal(context, program_state, this.portal_orange, this.materials.orange_portal, Mat4.identity());
+        this.draw_portal(context, program_state, this.portal_orange, this.materials.orange_portal, true);
 
         this.update_texture(context, this.scratchpad_orange_portal, this.scratchpad_context_orange_portal, this.texture_orange_portal, this.result_img_orange_portal);
 
         this.clear_buffer(context, this.texture_orange_portal);
+    }
 
+    draw_blue_portal(context, program_state, t){
+
+        if(this.portal_blue.normal.dot(this.main_camera.look_dir) > 0){
+            this.reset_texture(this.scratchpad_blue_portal, this.scratchpad_context_blue_portal,  this.texture_blue_portal, this.result_img_blue_portal);
+            return;
+        }
+
+        this.update_portal_camera(this.portal_orange, this.portal_blue, this.portal_orange.camera, 1);
 
         // RENDER FROM ORANGE PORTAL PERSPECTIVE, PASTE ONTO BLUE PORTAL
 
@@ -279,11 +326,16 @@ export class Game extends Scene {
 
         this.draw_visible_scene(context, program_state, t);
         this.draw_player(context, program_state);
-        // this.draw_portal(context, program_state, this.portal_blue, this.materials.blue_portal, this.portal_blue.basis_transform);
+        this.draw_portal(context, program_state, this.portal_blue, this.materials.blue_portal, true);
 
         this.update_texture(context, this.scratchpad_blue_portal, this.scratchpad_context_blue_portal, this.texture_blue_portal, this.result_img_blue_portal);
 
         this.clear_buffer(context, this.texture_blue_portal);
+    }
+
+    draw_portals_recursive(context, program_state, t){
+        this.draw_orange_portal(context, program_state, t);
+        this.draw_blue_portal(context, program_state, t);
 
     }
 
@@ -297,8 +349,6 @@ export class Game extends Scene {
         this.cube_1.post_multiply(Mat4.rotation(this.spin * dt * 30 / 60 * 2 * Math.PI, 1, 0, 0));
 
         this.update_main_camera(dt);
-        this.update_portal_camera(this.portal_blue, this.portal_orange, this.portal_blue.camera, "blue");
-        this.update_portal_camera(this.portal_orange, this.portal_blue, this.portal_orange.camera, "orange");
 
         this.draw_portals_recursive(context, program_state, t);
 
@@ -309,8 +359,8 @@ export class Game extends Scene {
         program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
 
         this.draw_visible_scene(context, program_state, t);
-        this.draw_portal(context, program_state, this.portal_blue, this.materials.blue_portal, Mat4.identity());
-        this.draw_portal(context, program_state, this.portal_orange, this.materials.orange_portal, Mat4.identity());
+        this.draw_portal(context, program_state, this.portal_blue, this.materials.blue_portal);
+        this.draw_portal(context, program_state, this.portal_orange, this.materials.orange_portal);
     }
 
     do_ground_calc(model_transform, draw_ceiling = false) {
@@ -386,7 +436,12 @@ export class Game extends Scene {
         }
         return wall_transforms;
     }
+
+
+
 }
+
+
 
 class Textured_Portal extends Shader {
     // This is a Shader using Phong_Shader as template
@@ -420,8 +475,6 @@ class Textured_Portal extends Shader {
 
     fragment_glsl_code() {
         // ********* FRAGMENT SHADER *********
-        // A fragment is a pixel that's overlapped by the current triangle.
-        // Fragments affect the final image or get discarded due to depth.
         return this.shared_glsl_code() + `
             uniform sampler2D texture;
             uniform float screen_height;
@@ -429,21 +482,29 @@ class Textured_Portal extends Shader {
             uniform float distance_start;
             uniform float distance_end;
             uniform vec4 color;
+            uniform int is_filled;
 
             void main(){                                              
                 vec2 pos_in_screen = vec2(gl_FragCoord.x/screen_width, gl_FragCoord.y/screen_height);
-                vec4 pixel_color = texture2D(texture, pos_in_screen);
+                vec4 pixel_color;
 
-                float dist = distance(center, point_position);
-                if( dist >= distance_start){
-                    if(dist <= distance_start + distance_end){
-                        float alpha = -(distance_start - dist) / distance_end;
-                        pixel_color = pixel_color*(1.0-alpha) + color*alpha;
-                    }else{
-                        pixel_color = color;
+                if(is_filled == 1){
+                    pixel_color = color;
+                }else{
+                    pixel_color = texture2D(texture, pos_in_screen);
+
+                    float dist = distance(center, point_position);
+
+                    if( dist >= distance_start){
+                        if(dist <= distance_start + distance_end){
+                            float alpha = -(distance_start - dist) / distance_end;
+                            pixel_color = pixel_color*(1.0-alpha) + color*alpha;
+                        }else{
+                            pixel_color = color;
+                        }
                     }
                 }
-                
+
                 gl_FragColor = pixel_color;
             } `;
     }
@@ -478,6 +539,7 @@ class Textured_Portal extends Shader {
         context.uniform4fv(gpu_addresses.color, material.color);
         context.uniform1f(gpu_addresses.distance_start, material.distance_start);
         context.uniform1f(gpu_addresses.distance_end, material.distance_end);
+        context.uniform1i(gpu_addresses.is_filled, material.is_filled);
 
         this.send_gpu_state(context, gpu_addresses, gpu_state, model_transform);
 
