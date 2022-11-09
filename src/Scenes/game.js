@@ -1,15 +1,17 @@
 import {defs, tiny} from '/src/lib/common.js';
-
-const {
-    Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture
-} = tiny;
+// Pull these names into this module's scope for convenience:
+const {vec3, vec4, color, hex_color, Matrix, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
 const {Phong_Shader, Fake_Bump_Map} = defs;
 
-
 export class Game extends Scene {
-    constructor() {
-        // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
+    constructor() {               // Request the camera, shapes, and materials our Scene will need:
         super();
+        this.shapes = {
+            quad: new defs.Square(),
+            circle: new defs.Regular_2D_Polygon(1, 48),
+            box: new defs.Cube(),
+            square: new defs.Square
+        }
 
         const screen_height = 600;
         const screen_width = 1080;
@@ -20,6 +22,8 @@ export class Game extends Scene {
         this.scratchpad_blue_portal.width = screen_width;
         this.scratchpad_blue_portal.height = screen_height;                // Initial image source: Blank gif file:
         this.texture_blue_portal = new Texture("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
+        // this.result_img_blue_portal = new Image();
+
 
         this.scratchpad_orange_portal = document.createElement('canvas');
         // A hidden canvas for re-sizing the real canvas to be square:
@@ -27,52 +31,42 @@ export class Game extends Scene {
         this.scratchpad_orange_portal.width = screen_width;
         this.scratchpad_orange_portal.height = screen_height;                // Initial image source: Blank gif file:
         this.texture_orange_portal = new Texture("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
+        // this.result_img_orange_portal = new Image();
 
-        // At the beginning of our program, load one of each of these shape definitions onto the GPU.
-        this.shapes = {
-            quad: new defs.Square(),
-            circle: new defs.Regular_2D_Polygon(1, 48),
-            box: new defs.Cube(),
-            sphere: new defs.Subdivision_Sphere(4),
-            square: new defs.Square
-        };
+        // console.log(this.texture);
 
-        // *** Materials
-        this.materials = {
-            default: new Material(new defs.Phong_Shader(),
-                {ambient: 1, diffusivity: 0.1, specularity: 0.1, color: hex_color("#6da8e3")}),
-            plastic: new Material(new defs.Phong_Shader(),
-                {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
-            earth: new Material(new Fake_Bump_Map(1), {ambient: .5, texture: new Texture("src/assets/earth.gif")}),
-            blue_portal: new Material(new Textured_Portal(), {texture: this.texture_blue_portal, screen_width:screen_width,
-                screen_height:screen_height, color:hex_color("#0066BB"), distance_start:.9, distance_end:0.1}),
-            orange_portal: new Material(new Textured_Portal(), {texture: this.texture_orange_portal, screen_width:screen_width,
-                screen_height:screen_height, color:hex_color("#BB6600"), distance_start:.9, distance_end:0.1}),
-            phong: new Material(new Phong_Shader(), {ambient: .5}),
-        }
+        this.materials =
+            {
+                earth: new Material(new Fake_Bump_Map(1), {ambient: .5, texture: new Texture("src/assets/earth.gif")}),
+                blue_portal: new Material(new Textured_Portal(), {texture: this.texture_blue_portal, screen_width:screen_width,
+                    screen_height:screen_height, color:hex_color("#0066BB"), distance_start:.9, distance_end:0.1}),
+                orange_portal: new Material(new Textured_Portal(), {texture: this.texture_orange_portal, screen_width:screen_width,
+                    screen_height:screen_height, color:hex_color("#BB6600"), distance_start:.9, distance_end:0.1}),
+                phong: new Material(new Phong_Shader(), {ambient: .5}),
+                plastic: new Material(new defs.Phong_Shader(),
+                    {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
+                default: new Material(new defs.Phong_Shader(),
+                    {ambient: 1, diffusivity: 0.1, specularity: 0.1, color: hex_color("#6da8e3")}),
+            }
 
-        this.wall_transforms = this.do_walls_calc(Mat4.identity())
-        this.ground_transforms = this.do_ground_calc(Mat4.identity(), true)
-
-        this.initial_camera_location = Mat4.look_at(vec3(0, 5, 20), vec3(0, 5, 0), vec3(0, 1, 0));
         this.spin = 0;
-        this.cube_1 = Mat4.translation(-4 , 0, 2);
+        this.cube_1 = Mat4.translation(-4 , 1, 2);
 
         this.main_camera = {
-            pos: vec3(0, 5, 0),
+            pos: vec3(0, 1, 10),
             top: vec3(0, 1, 0),
             look_dir: null,
             transform: null,
             rot: vec3(0, 0, 0),
             pos_dir: vec3(0, 0, 0),
             rot_dir: vec3(0, 0, 0),
-            speed: 10.0,
+            speed: 2.0,
             turning_speed: 0.5 * Math.PI
         }
 
         this.portal_blue = {
-            pos: vec3(10, -5, 10),
-            scale: vec3(4, 5, 4),
+            pos: vec3(-5, -1, 10),
+            scale: vec3(1, 1, 1),
             normal: vec3(0, 0, -1),
             top: vec3(0, 1, 0),
             color_behind: hex_color("#0066BB"),
@@ -87,8 +81,8 @@ export class Game extends Scene {
         }
 
         this.portal_orange = {
-            pos: vec3(0, -5, 10),
-            scale: vec3(4, 5, 4),
+            pos: vec3(0, -1, 0),
+            scale: vec3(1, 1, 1),
             normal: vec3(0, 0, 1),
             top: vec3(0, 1, 0),
             color_behind: hex_color("#BB6600"),
@@ -104,6 +98,13 @@ export class Game extends Scene {
 
         this.compute_portal_transform( this.portal_blue);
         this.compute_portal_transform( this.portal_orange);
+        this.wall_transforms = this.do_walls_calc(Mat4.identity())
+        this.ground_transforms = this.do_ground_calc(Mat4.identity(), true)
+
+    }
+
+    get_cosine_interpolation(min, max, period, t, t_offset){
+        return (max-min)/2.0 * ( -Math.cos( Math.PI * ( 2*(t - t_offset)/period) ) + 1 ) + min ;
     }
 
     make_control_panel() {
@@ -121,6 +122,7 @@ export class Game extends Scene {
 
         this.result_img_orange_portal = this.control_panel.appendChild(Object.assign(document.createElement("img"),
             {style: "width:200px; height:" + 200 * this.aspect_ratio + "px"}));
+
 
         this.key_triggered_button("Up", [" "], () => this.main_camera.pos_dir[1] = 1, undefined, () => this.main_camera.pos_dir[1] = 0);
         this.key_triggered_button("Forward", ["w"], () => this.main_camera.pos_dir[2] = -1, undefined, () => this.main_camera.pos_dir[2] = 0);
@@ -158,13 +160,6 @@ export class Game extends Scene {
                 .times(Mat4.scale(portal.scale[0], portal.scale[1], portal.scale[2]))
     }
 
-    update_texture(context, scratchpad, scratchpad_context, texture, result_img){
-        scratchpad_context.drawImage(context.canvas, 0, 0,  scratchpad.width, scratchpad.width, 0, 0, scratchpad.width, scratchpad.width);
-        result_img.src = scratchpad.toDataURL("image/png");
-
-        texture.image.src = result_img.src;
-    }
-
     clear_buffer(context, texture){
         // Don't call copy to GPU until the event loop has had a chance
         // to act on our SRC setting once:
@@ -175,6 +170,51 @@ export class Game extends Scene {
 
         // Start over on a new drawing, never displaying the prior one:
         context.context.clear(context.context.COLOR_BUFFER_BIT | context.context.DEPTH_BUFFER_BIT);
+    }
+
+    update_texture(context, scratchpad, scratchpad_context, texture, result_img){
+        scratchpad_context.drawImage(context.canvas, 0, 0,  scratchpad.width, scratchpad.width, 0, 0, scratchpad.width, scratchpad.width);
+        result_img.src = scratchpad.toDataURL("image/png");
+
+        texture.image.src = result_img.src;
+    }
+
+    draw_visible_scene(context, program_state, t){
+        this.draw_ground(context, program_state, Mat4.identity(), true)
+        this.draw_walls(context, program_state, Mat4.identity())
+
+        this.shapes.box.draw(context, program_state, this.cube_1, this.materials.earth);
+
+        this.shapes.box.draw(context, program_state, Mat4.identity()
+                .times(Mat4.translation(-1,1,1))
+                .times(Mat4.scale(.3,.3,.3)),
+            this.materials.phong.override({color: hex_color("#FF80FF")}));
+
+        this.shapes.box.draw(context, program_state, Mat4.identity()
+                .times(Mat4.translation(-8, this.get_cosine_interpolation(1, 4, 3, t, 0), 5))
+                .times(Mat4.scale(.3,.5,.3)),
+            this.materials.phong.override({color: hex_color("#00FF55")}));
+
+        this.shapes.box.draw(context, program_state, Mat4.identity()
+                .times(Mat4.translation(4, 0, 8))
+                .times(Mat4.scale(.5,.5,this.get_cosine_interpolation(0, 1, .8, t, 0))),
+            this.materials.phong.override({color: hex_color("#f76d28")}));
+    }
+
+    draw_portal(context, program_state, portal, material, basis){
+
+        this.shapes.circle.draw(context, program_state, basis.times(portal.screen_transform)
+            , material);
+    }
+
+    draw_player(context, program_state){
+        this.shapes.box.draw(context, program_state,
+            Mat4.translation(this.main_camera.pos[0], this.main_camera.pos[1], this.main_camera.pos[2])
+                .times(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0))
+                .times(Mat4.rotation(this.main_camera.rot[1], 1, 0, 0))
+                .times(Mat4.translation(0, -.2, 0))
+                .times(Mat4.scale(.3, .8, .3)),
+            this.materials.phong.override({color: hex_color("#FFFFFF")}));
     }
 
     update_main_camera(dt){
@@ -217,47 +257,54 @@ export class Game extends Scene {
     }
 
     draw_portals_recursive(context, program_state, t){
+
         // RENDER FROM BLUE PORTAL PERSPECTIVE, PASTE ONTO ORANGE PORTAL
+
         program_state.set_camera(this.portal_blue.camera.transform);
         program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
+
         this.draw_visible_scene(context, program_state, t);
         this.draw_player(context, program_state);
         // this.draw_portal(context, program_state, this.portal_orange, this.materials.orange_portal, Mat4.identity());
+
         this.update_texture(context, this.scratchpad_orange_portal, this.scratchpad_context_orange_portal, this.texture_orange_portal, this.result_img_orange_portal);
+
         this.clear_buffer(context, this.texture_orange_portal);
 
 
         // RENDER FROM ORANGE PORTAL PERSPECTIVE, PASTE ONTO BLUE PORTAL
+
         program_state.set_camera(this.portal_orange.camera.transform);
         program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
+
         this.draw_visible_scene(context, program_state, t);
         this.draw_player(context, program_state);
         // this.draw_portal(context, program_state, this.portal_blue, this.materials.blue_portal, this.portal_blue.basis_transform);
+
         this.update_texture(context, this.scratchpad_blue_portal, this.scratchpad_context_blue_portal, this.texture_blue_portal, this.result_img_blue_portal);
+
         this.clear_buffer(context, this.texture_blue_portal);
+
     }
 
     display(context, program_state) {
-        // display():  Called once per frame of animation.
-        // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
-        if (!context.scratchpad.controls) {
-            this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
-            // Define the global camera and projection matrices, which are stored in program_state.
-            program_state.set_camera(this.initial_camera_location);
-        }
 
+        // ALL FRAME UPDATES
+
+        program_state.lights = [new Light(vec4(-5, 5, 5, 1), color(1, 1, 1, 1), 100000)];
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
-        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .1, 1000);
 
-        // The parameters of the Light are: position, color, size
-        program_state.lights = [new Light(vec4(0, 2, 0, 1), hex_color("#f2eda7"), 1000)];
+        this.cube_1.post_multiply(Mat4.rotation(this.spin * dt * 30 / 60 * 2 * Math.PI, 1, 0, 0));
 
         this.update_main_camera(dt);
         this.update_portal_camera(this.portal_blue, this.portal_orange, this.portal_blue.camera, "blue");
         this.update_portal_camera(this.portal_orange, this.portal_blue, this.portal_orange.camera, "orange");
+
         this.draw_portals_recursive(context, program_state, t);
 
+
         //  RENDER FROM MAIN CAMERA
+
         program_state.set_camera(this.main_camera.transform);
         program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
 
@@ -266,30 +313,24 @@ export class Game extends Scene {
         this.draw_portal(context, program_state, this.portal_orange, this.materials.orange_portal, Mat4.identity());
     }
 
-    draw_visible_scene(context, program_state, t) {
-        this.draw_ground(context, program_state, Mat4.identity(), true)
-        this.draw_walls(context, program_state, Mat4.identity())
+    do_ground_calc(model_transform, draw_ceiling = false) {
+        const k_max = draw_ceiling ? 2 : 1;
 
-        //sphere at origin for reference
-        // const origin = Mat4.identity();
-        // let temp = origin.times(Mat4.scale(0.3, 0.3, 0.3))
-        // this.shapes.sphere.draw(context, program_state, temp, this.materials.default.override({color: hex_color("#db0718")}))
-    }
+        let ground_transforms = [[],[]]
+        for(let k = 0; k < k_max; k++) {
+            const y = (k == 0 ? 0 : 8)
 
-    draw_portal(context, program_state, portal, material, basis){
-
-        this.shapes.circle.draw(context, program_state, basis.times(portal.screen_transform)
-            , material);
-    }
-
-    draw_player(context, program_state){
-        this.shapes.box.draw(context, program_state,
-            Mat4.translation(this.main_camera.pos[0], this.main_camera.pos[1], this.main_camera.pos[2])
-                .times(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0))
-                .times(Mat4.rotation(this.main_camera.rot[1], 1, 0, 0))
-                .times(Mat4.translation(0, -.2, 0))
-                .times(Mat4.scale(.3, .8, .3)),
-            this.materials.phong.override({color: hex_color("#FFFFFF")}));
+            for(let i = -5; i < 5; i++) {
+                for(let j = -5; j < 5; j++) {
+                    let temp = model_transform
+                        .times(Mat4.translation(4*i, y, 4*j))
+                        .times(Mat4.scale(2, 1, 2))
+                        .times(Mat4.rotation(Math.PI/2, 1, 0, 0))
+                    ground_transforms[k].push(temp)
+                }
+            }
+        }
+        return ground_transforms
     }
 
     draw_walls(context, program_state) {
@@ -307,50 +348,30 @@ export class Game extends Scene {
         }
     }
 
-    do_ground_calc(model_transform, draw_ceiling = false) {
-        const k_max = draw_ceiling ? 2 : 1;
-
-        let ground_transforms = [[],[]]
-        for(let k = 0; k < k_max; k++) {
-            const y = (k == 0 ? 0 : 20)
-
-            for(let i = -5; i < 5; i++) {
-                for(let j = -5; j < 5; j++) {
-                    let temp = model_transform
-                        .times(Mat4.translation(10*i, y, 10*j))
-                        .times(Mat4.scale(5, 1, 5))
-                        .times(Mat4.rotation(Math.PI/2, 1, 0, 0))
-                    ground_transforms[k].push(temp)
-                }
-            }
-        }
-        return ground_transforms
-    }
-
     do_walls_calc(model_transform, height = 2) {
         const walls = {
             right: (i, j) => {
                 return model_transform
-                    .times(Mat4.translation(45, 5+j*10, i*10))
-                    .times(Mat4.scale(1, 5, 5))
+                    .times(Mat4.translation(18, j*4+2, i*4))
+                    .times(Mat4.scale(1, 2, 2))
                     .times(Mat4.rotation(Math.PI/2, 0, 1, 0))
             },
             left: (i, j) => {
                 return model_transform
-                    .times(Mat4.translation(-55, 5+j*10, i*10))
-                    .times(Mat4.scale(1, 5, 5))
+                    .times(Mat4.translation(-22, j*4+2, i*4))
+                    .times(Mat4.scale(1, 2, 2))
                     .times(Mat4.rotation(Math.PI/2, 0, 1, 0))
             },
             far: (i, j) => {
                 return model_transform
-                    .times(Mat4.translation(i*10, 5+j*10, -55))
-                    .times(Mat4.scale(5, 5, 1))
+                    .times(Mat4.translation(i*4, j*4+2, -22))
+                    .times(Mat4.scale(2, 2, 1))
                     .times(Mat4.rotation(Math.PI/2, 0, 0, 1))
             },
             near: (i, j) => {
                 return model_transform
-                    .times(Mat4.translation(i*10, 5+j*10, 45))
-                    .times(Mat4.scale(5, 5, 1))
+                    .times(Mat4.translation(i*4, j*4+2, 18))
+                    .times(Mat4.scale(2, 2, 1))
                     .times(Mat4.rotation(Math.PI/2, 0, 0, 1))
             }
         }
@@ -369,6 +390,7 @@ export class Game extends Scene {
 
 class Textured_Portal extends Shader {
     // This is a Shader using Phong_Shader as template
+    // TODO: Modify the glsl coder here to create a Gouraud Shader (Planet 2)
 
     constructor() {
         super();
@@ -467,4 +489,3 @@ class Textured_Portal extends Shader {
         }
     }
 }
-
