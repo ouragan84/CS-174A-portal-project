@@ -59,27 +59,28 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             }
 
         this.spin = 0;
-        this.cube_1 = Mat4.translation(-4 , 1, 2);
+        this.cube_1 = Mat4.translation(0 , 1.5, 1);
 
         this.main_camera = {
-            pos: vec3(0, 1, 10),
+            pos: vec3(5, 1, 5),
             top: vec3(0, 1, 0),
             look_dir: null,
             transform: null,
             rot: vec3(0, 0, 0),
             pos_dir: vec3(0, 0, 0),
             rot_dir: vec3(0, 0, 0),
-            speed: 2.0,
-            turning_speed: 0.5 * Math.PI
+            speed: 3.0,
+            turning_speed: 0.8 * Math.PI
         }
 
         this.portal_blue = {
-            pos: vec3(-5, -1, 17.99),
+            pos: vec3(5, 1, -2),
             scale: vec3(1, 1, 1),
-            normal: vec3(0, 0, -1),
+            normal: vec3(0, 0, 1),
             top: vec3(0, 1, 0),
             color_behind: hex_color("#0080FF"),
             screen_transform: null,
+            inv_screen_transform: null,
             basis_transform: null,
             camera: {
                 pos: vec3(),
@@ -90,12 +91,13 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         }
 
         this.portal_orange = {
-            pos: vec3(0, -1, 0),
+            pos: vec3(-4, 1, 10),
             scale: vec3(1, 1, 1),
-            normal: vec3(0, 0, 1),
+            normal: vec3(.6, 0, -.8),
             top: vec3(0, 1, 0),
             color_behind: hex_color("#FF8000"),
             screen_transform: null,
+            inv_screen_transform: null,
             basis_transform: null,
             camera: {
                 pos: vec3(),
@@ -166,6 +168,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         portal.screen_transform =
             this.to_basis( portal.top.cross(portal.normal), portal.top, portal.normal, portal.pos)
                 .times(Mat4.scale(portal.scale[0], portal.scale[1], portal.scale[2]))
+ 
+        portal.inv_screen_transform = Mat4.inverse(portal.screen_transform );
     }
 
     clear_buffer(context, texture){
@@ -201,23 +205,23 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.shapes.box.draw(context, program_state, this.cube_1, this.materials.earth);
 
         this.shapes.box.draw(context, program_state, Mat4.identity()
-                .times(Mat4.translation(-1,1,1))
+                .times(Mat4.translation(3,1,1))
                 .times(Mat4.scale(.3,.3,.3)),
             this.materials.phong.override({color: hex_color("#FF80FF")}));
 
         this.shapes.box.draw(context, program_state, Mat4.identity()
-                .times(Mat4.translation(-8, this.get_cosine_interpolation(1, 4, 3, t, 0), 5))
+                .times(Mat4.translation(-1, this.get_cosine_interpolation(1, 4, 3, t, 0), 5))
                 .times(Mat4.scale(.3,.5,.3)),
             this.materials.phong.override({color: hex_color("#00FF55")}));
 
         this.shapes.box.draw(context, program_state, Mat4.identity()
-                .times(Mat4.translation(4, .5, 8))
-                .times(Mat4.scale(.5,.5,this.get_cosine_interpolation(-2, 2, .8, t, 0))),
+                .times(Mat4.translation(2, .5, 8))
+                .times(Mat4.scale(.5,.5,this.get_cosine_interpolation(1, .2, 1.2, t, 0))),
             this.materials.phong.override({color: hex_color("#f76d28")}));
     }
 
     draw_portal(context, program_state, portal, material, draw_filled=false){
-        this.shapes.circle.draw(context, program_state, portal.screen_transform, material.override({is_filled : (draw_filled?1:0)}));
+        this.shapes.circle.draw(context, program_state, portal.inv_screen_transform, material.override({is_filled : (draw_filled?1:0)}));
     }
 
     draw_player(context, program_state){
