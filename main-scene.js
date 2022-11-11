@@ -9,6 +9,7 @@ import {Text_Demo} from "./src/Scenes/examples/text-demo.js"
 import {Transforms_Sandbox} from "./src/Scenes/examples/transforms-sandbox.js"
 import {Room_Sandbox} from "./src/Scenes/room-sandbox.js";
 import {Portal_Room} from "./src/Scenes/portal-room.js";
+import {Game} from "./src/Scenes/game.js";
 
 // Pull these names into this module's scope for convenience:
 const {
@@ -36,14 +37,15 @@ Object.assign(defs,
     {Text_Demo},
     {Transforms_Sandbox},
     {Room_Sandbox},
-    {Portal_Room}
+    {Portal_Room},
+    {Game}
 );
 
 // ******************** End extra step
 
 // (Can define Main_Scene's class here)
 
-const Main_Scene = Portal_Room;
+const Main_Scene = Game;
 const Additional_Scenes = [];
 
 export {Main_Scene, Additional_Scenes, Canvas_Widget, Code_Widget, Text_Widget, defs}
