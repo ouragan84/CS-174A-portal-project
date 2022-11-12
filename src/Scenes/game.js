@@ -19,7 +19,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             quad: new defs.Square(),
             circle: new defs.Regular_2D_Polygon(1, 48),
             box: new defs.Cube(),
-            square: new defs.Square()
+            square: new defs.Square(),
+            sphere: new defs.Subdivision_Sphere(4),
         }
 
         const screen_height = 600;
@@ -56,6 +57,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                     {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
                 default: new Material(new defs.Phong_Shader(),
                     {ambient: 1, diffusivity: 0.1, specularity: 0.1, color: hex_color("#6da8e3")}),
+                projectile: new Material(new defs.Phong_Shader(), {ambient: .5, diffusivity: 0.1}) //probably change
             }
 
         this.spin = 0;
@@ -107,6 +109,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             }
         }
 
+        this.projectiles = []
+
         this.compute_portal_transform( this.portal_blue);
         this.compute_portal_transform( this.portal_orange);
         this.wall_transforms = this.do_walls_calc(Mat4.identity())
@@ -133,6 +137,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.result_img_orange_portal = this.control_panel.appendChild(Object.assign(document.createElement("img"),
             {style: "width:200px; height:" + 200 * this.aspect_ratio + "px"}));
 
+        this.key_triggered_button("Left Click (blue)", ["["], () => this.shoot_projectile("blue"))
+        this.key_triggered_button("Right Click (orange)", ["]"], () => this.shoot_projectile("orange"))
 
         this.key_triggered_button("Up", [" "], () => this.main_camera.pos_dir[1] = 1, undefined, () => this.main_camera.pos_dir[1] = 0);
         this.key_triggered_button("Forward", ["w"], () => this.main_camera.pos_dir[2] = -1, undefined, () => this.main_camera.pos_dir[2] = 0);
@@ -201,6 +207,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     draw_visible_scene(context, program_state, t){
         this.draw_ground(context, program_state)
         this.draw_walls(context, program_state)
+        this.draw_projectiles(context, program_state)
 
         this.shapes.box.draw(context, program_state, this.cube_1, this.materials.earth);
 
@@ -343,6 +350,45 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
     }
 
+    shoot_projectile(type) {
+        this.projectiles.push({
+            type,
+            start: vec3(... this.main_camera.pos),
+            time: Date.now(),
+            dir: vec3(... this.main_camera.look_dir),
+            transform: null
+        })
+    }
+
+    update_projectiles(dt) {
+        const origin = Mat4.identity();
+        const projectile_scale = 0.1
+        for(let i = 0; i < this.projectiles.length; ++i) {
+            let time_diff = (Date.now() - this.projectiles[i].time)/100
+            //temporary: projectiles disappear after 5 seconds
+            if(time_diff > 50) {
+                this.projectiles.splice(i, 1)
+                i--;
+                continue;
+            }
+            const posX = this.projectiles[i].start[0] + (this.projectiles[i].dir[0] * time_diff)
+            const posY = this.projectiles[i].start[1] + (this.projectiles[i].dir[1] * time_diff)
+            const posZ = this.projectiles[i].start[2] + (this.projectiles[i].dir[2] * time_diff)
+
+            this.projectiles[i].transform = origin
+                .times(Mat4.translation(posX, posY, posZ))
+                .times(Mat4.scale(projectile_scale, projectile_scale, projectile_scale))
+
+        }
+    }
+
+    draw_projectiles(context, program_state) {
+        for(let projectile of this.projectiles) {
+            const color = projectile.type == "orange" ? hex_color("FFA500") : hex_color("0059FF");
+            this.shapes.sphere.draw(context, program_state, projectile.transform, this.materials.projectile.override({color}))
+        }
+    }
+
     display(context, program_state) {
 
         // ALL FRAME UPDATES
@@ -353,6 +399,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.cube_1.post_multiply(Mat4.rotation(this.spin * dt * 30 / 60 * 2 * Math.PI, 1, 0, 0));
 
         this.update_main_camera(dt);
+        this.update_projectiles(dt);
 
         this.draw_portals_recursive(context, program_state, t);
 
