@@ -351,9 +351,11 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     }
 
     shoot_projectile(type) {
+        const color = type == "orange" ? hex_color("FFA500") : hex_color("0059FF");
         this.projectiles.push({
-            type,
+            color,
             start: vec3(... this.main_camera.pos),
+            newPos: vec3(... this.main_camera.pos),
             time: Date.now(),
             dir: vec3(... this.main_camera.look_dir),
             transform: null
@@ -374,6 +376,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             const posX = this.projectiles[i].start[0] + (this.projectiles[i].dir[0] * time_diff)
             const posY = this.projectiles[i].start[1] + (this.projectiles[i].dir[1] * time_diff)
             const posZ = this.projectiles[i].start[2] + (this.projectiles[i].dir[2] * time_diff)
+            this.projectiles[i].newPos = vec3(posX, posY, posZ)
 
             this.projectiles[i].transform = origin
                 .times(Mat4.translation(posX, posY, posZ))
@@ -384,16 +387,17 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
     draw_projectiles(context, program_state) {
         for(let projectile of this.projectiles) {
-            const color = projectile.type == "orange" ? hex_color("FFA500") : hex_color("0059FF");
-            this.shapes.sphere.draw(context, program_state, projectile.transform, this.materials.projectile.override({color}))
+            this.shapes.sphere.draw(context, program_state, projectile.transform, this.materials.projectile.override({color: projectile.color}))
         }
     }
 
     display(context, program_state) {
-
         // ALL FRAME UPDATES
 
-        program_state.lights = [new Light(vec4(-5, 5, 5, 1), color(1, 1, 1, 1), 100000)];
+        const portal_lights = this.projectiles.map((projectile) => {
+            return new Light(projectile.newPos.to4(true), projectile.color, 100)
+        })
+        program_state.lights = [new Light(vec4(-5, 5, 5, 1), color(1, 1, 1, 1), 100), ...portal_lights];
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
 
         this.cube_1.post_multiply(Mat4.rotation(this.spin * dt * 30 / 60 * 2 * Math.PI, 1, 0, 0));
