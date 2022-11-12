@@ -354,17 +354,18 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         const color = type == "orange" ? hex_color("FFA500") : hex_color("0059FF");
         this.projectiles.push({
             color,
-            start: vec3(... this.main_camera.pos),
-            newPos: vec3(... this.main_camera.pos),
+            start: this.main_camera.pos.copy(),
+            newPos: this.main_camera.pos.copy(),
             time: Date.now(),
-            dir: vec3(... this.main_camera.look_dir),
+            dir: this.main_camera.look_dir.copy(),
             transform: null
         })
     }
 
     update_projectiles(dt) {
         const origin = Mat4.identity();
-        const projectile_scale = 0.1
+        //const projectile_scale = 0.1
+        const projectile_scale = 0.025 * Math.sin(6 * dt) + 0.14;
         for(let i = 0; i < this.projectiles.length; ++i) {
             let time_diff = (Date.now() - this.projectiles[i].time)/100
             //temporary: projectiles disappear after 5 seconds
@@ -373,13 +374,9 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                 i--;
                 continue;
             }
-            const posX = this.projectiles[i].start[0] + (this.projectiles[i].dir[0] * time_diff)
-            const posY = this.projectiles[i].start[1] + (this.projectiles[i].dir[1] * time_diff)
-            const posZ = this.projectiles[i].start[2] + (this.projectiles[i].dir[2] * time_diff)
-            this.projectiles[i].newPos = vec3(posX, posY, posZ)
-
+            this.projectiles[i].newPos = this.projectiles[i].start.plus(this.projectiles[i].dir.times(time_diff))
             this.projectiles[i].transform = origin
-                .times(Mat4.translation(posX, posY, posZ))
+                .times(Mat4.translation(this.projectiles[i].newPos[0], this.projectiles[i].newPos[1], this.projectiles[i].newPos[2]))
                 .times(Mat4.scale(projectile_scale, projectile_scale, projectile_scale))
 
         }
@@ -395,7 +392,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         // ALL FRAME UPDATES
 
         const portal_lights = this.projectiles.map((projectile) => {
-            return new Light(projectile.newPos.to4(true), projectile.color, 100)
+            return new Light(projectile.newPos.to4(true), projectile.color, 15)
         })
         program_state.lights = [new Light(vec4(-5, 5, 5, 1), color(1, 1, 1, 1), 100), ...portal_lights];
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
