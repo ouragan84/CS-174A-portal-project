@@ -13,7 +13,7 @@ export class Body {
     }
 
     // (within some margin of distance).
-    static intersect_cube(p, margin = 0) {
+    static intersect_cube(p, margin = .1) {
         return p.every(value => value >= -1 - margin && value <= 1 + margin)
     }
 

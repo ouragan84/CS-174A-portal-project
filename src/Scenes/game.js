@@ -1,4 +1,5 @@
 import {defs, tiny} from '/src/lib/common.js';
+import {Body} from "./examples/collisions-demo.js";
 // Pull these names into this module's scope for convenience:
 const {vec3, vec4, color, hex_color, Matrix, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
 const {Phong_Shader, Fake_Bump_Map} = defs;
@@ -110,11 +111,14 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         }
 
         this.projectiles = []
+        this.collider = {intersect_test: Body.intersect_cube, points: new defs.Subdivision_Sphere(4), leeway: .3}
 
         this.compute_portal_transform( this.portal_blue);
         this.compute_portal_transform( this.portal_orange);
+        this.wall_bodies = []
         this.wall_transforms = this.do_walls_calc(Mat4.identity())
         this.ground_transforms = this.do_ground_calc(Mat4.identity(), true)
+
     }
 
     get_cosine_interpolation(min, max, period, t, t_offset){
@@ -351,8 +355,9 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     }
 
     shoot_projectile(type) {
-        const color = type == "orange" ? hex_color("FFA500") : hex_color("0059FF");
+        const color = type === "orange" ? hex_color("FFA500") : hex_color("0059FF");
         this.projectiles.push({
+            type,
             color,
             start: this.main_camera.pos.copy(),
             newPos: this.main_camera.pos.copy(),
@@ -368,17 +373,39 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         const projectile_scale = 0.025 * Math.sin(6 * dt) + 0.14;
         for(let i = 0; i < this.projectiles.length; ++i) {
             let time_diff = (Date.now() - this.projectiles[i].time)/100
-            //temporary: projectiles disappear after 5 seconds
-            if(time_diff > 50) {
-                this.projectiles.splice(i, 1)
-                i--;
-                continue;
-            }
             this.projectiles[i].newPos = this.projectiles[i].start.plus(this.projectiles[i].dir.times(time_diff))
             this.projectiles[i].transform = origin
                 .times(Mat4.translation(this.projectiles[i].newPos[0], this.projectiles[i].newPos[1], this.projectiles[i].newPos[2]))
                 .times(Mat4.scale(projectile_scale, projectile_scale, projectile_scale))
 
+            //projectiles disappear after 10 seconds
+            if(time_diff > 100) {
+                this.projectiles.splice(i, 1)
+                i--;
+                continue;
+            }
+
+            let projectile_body = new Body(this.shapes.sphere, this.materials.projectile,
+                vec3(projectile_scale, projectile_scale, projectile_scale))
+            projectile_body.emplace(this.projectiles[i].transform, vec3(0,0,0), 0, vec3(0,0,0))
+            projectile_body.inverse = Mat4.inverse(this.projectiles[i].transform)
+
+            for (let body of this.wall_bodies) {
+                // Pass the two bodies and the collision shape to check_if_colliding():
+                if (!projectile_body.check_if_colliding(body, this.collider))
+                    continue;
+
+                if(this.projectiles[i].type === "blue") {
+                    this.portal_blue.pos = body.center;
+                    this.compute_portal_transform(this.portal_blue)
+                } else {
+                    this.portal_orange.pos = body.center;
+                    this.compute_portal_transform(this.portal_orange)
+                }
+                this.projectiles.splice(i, 1)
+                i--;
+                break;
+            }
         }
     }
 
@@ -482,17 +509,19 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         for(const [_, transform] of Object.entries(walls)) {
             for(let i = -5; i < 5; i++) {
                 for(let j = 0; j < height; j++) {
-                    wall_transforms.push(transform(i, j))
+                    const temp_transform = transform(i, j)
+                    const temp_body = new Body(this.shapes.square, this.materials.plastic, vec3(2, 2, 2))
+                    temp_body.emplace(temp_transform, vec3(0,0,0), 0, vec3(0,0,0))
+                    temp_body.inverse = Mat4.inverse(temp_body.drawn_location)
+
+                    wall_transforms.push(temp_transform)
+                    this.wall_bodies.push(temp_body)
                 }
             }
         }
         return wall_transforms;
     }
-
-
-
 }
-
 
 
 class Textured_Portal extends Shader {
