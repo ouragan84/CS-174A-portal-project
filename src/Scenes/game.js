@@ -110,6 +110,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             }
         }
 
+        this.last_fired = Date.now();
         this.projectiles = []
         this.collider = {intersect_test: Body.intersect_cube, points: new defs.Subdivision_Sphere(4), leeway: .3}
 
@@ -355,6 +356,10 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     }
 
     shoot_projectile(type) {
+        //limit shooting to every _ seconds
+        if(Date.now() - this.last_fired < 1000) return;
+        this.last_fired = Date.now();
+
         const color = type === "orange" ? hex_color("FFA500") : hex_color("0059FF");
         this.projectiles.push({
             type,
@@ -395,11 +400,16 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                 if (!projectile_body.check_if_colliding(body, this.collider))
                     continue;
 
+                console.log(body.normal, projectile_body.center)
                 if(this.projectiles[i].type === "blue") {
-                    this.portal_blue.pos = body.center;
+                    //this.portal_blue.pos = projectile_body.center.minus(body.normal.times(0.5)).plus(body.normal.times(0.01));
+                    this.portal_blue.pos = projectile_body.center;
+                    this.portal_blue.normal = body.normal;
                     this.compute_portal_transform(this.portal_blue)
                 } else {
-                    this.portal_orange.pos = body.center;
+                    //this.portal_orange.pos = projectile_body.center.minus(body.normal.times(0.5)).plus(body.normal.times(0.01));
+                    this.portal_orange.pos = projectile_body.center
+                    this.portal_orange.normal = body.normal;
                     this.compute_portal_transform(this.portal_orange)
                 }
                 this.projectiles.splice(i, 1)
@@ -433,7 +443,6 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
 
         //  RENDER FROM MAIN CAMERA
-
         program_state.set_camera(this.main_camera.transform);
         program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
 
@@ -479,29 +488,30 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
     do_walls_calc(model_transform, height = 2) {
         const walls = {
+            // returns [transform, normal]
             right: (i, j) => {
-                return model_transform
+                return [model_transform
                     .times(Mat4.translation(18, j*4+2, i*4))
                     .times(Mat4.scale(1, 2, 2))
-                    .times(Mat4.rotation(Math.PI/2, 0, 1, 0))
+                    .times(Mat4.rotation(Math.PI/2, 0, 1, 0)), vec3(-1, 0, 0)]
             },
             left: (i, j) => {
-                return model_transform
+                return [model_transform
                     .times(Mat4.translation(-22, j*4+2, i*4))
                     .times(Mat4.scale(1, 2, 2))
-                    .times(Mat4.rotation(Math.PI/2, 0, 1, 0))
+                    .times(Mat4.rotation(Math.PI/2, 0, 1, 0)), vec3(1, 0, 0)]
             },
             far: (i, j) => {
-                return model_transform
+                return [model_transform
                     .times(Mat4.translation(i*4, j*4+2, -22))
                     .times(Mat4.scale(2, 2, 1))
-                    .times(Mat4.rotation(Math.PI/2, 0, 0, 1))
+                    .times(Mat4.rotation(Math.PI/2, 0, 0, 1)), vec3(0, 0, 1)]
             },
             near: (i, j) => {
-                return model_transform
+                return [model_transform
                     .times(Mat4.translation(i*4, j*4+2, 18))
                     .times(Mat4.scale(2, 2, 1))
-                    .times(Mat4.rotation(Math.PI/2, 0, 0, 1))
+                    .times(Mat4.rotation(Math.PI/2, 0, 0, 1)), vec3(0, 0, -1)]
             }
         }
 
@@ -509,10 +519,11 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         for(const [_, transform] of Object.entries(walls)) {
             for(let i = -5; i < 5; i++) {
                 for(let j = 0; j < height; j++) {
-                    const temp_transform = transform(i, j)
+                    const [temp_transform, normal] = transform(i, j)
                     const temp_body = new Body(this.shapes.square, this.materials.plastic, vec3(2, 2, 2))
                     temp_body.emplace(temp_transform, vec3(0,0,0), 0, vec3(0,0,0))
                     temp_body.inverse = Mat4.inverse(temp_body.drawn_location)
+                    temp_body.normal = normal;
 
                     wall_transforms.push(temp_transform)
                     this.wall_bodies.push(temp_body)
