@@ -428,11 +428,13 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     display(context, program_state) {
         // ALL FRAME UPDATES
 
+        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
         const portal_lights = this.projectiles.map((projectile) => {
-            return new Light(projectile.newPos.to4(true), projectile.color, 15)
+            //use size = 15 for more normal light effect
+            const size = 100* Math.sin(6* t) + 10
+            return new Light(projectile.newPos.to4(true), projectile.color, size)
         })
         program_state.lights = [new Light(vec4(-5, 5, 5, 1), color(1, 1, 1, 1), 100), ...portal_lights];
-        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
 
         this.cube_1.post_multiply(Mat4.rotation(this.spin * dt * 30 / 60 * 2 * Math.PI, 1, 0, 0));
 
