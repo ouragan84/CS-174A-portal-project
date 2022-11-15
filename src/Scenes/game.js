@@ -276,6 +276,28 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         portal.basis_transform = trans;
     }
 
+    get_oblique_projection_matrix(proj_mat, inv_proj_mat, cam_space_plane){
+        let C = cam_space_plane;
+        let C_ = (inv_proj_mat).transposed().times(C);
+        let Q_ = vec4(Math.sign(C_[0]), Math.sign(C_[1]), 1, 1)
+        let Q = inv_proj_mat.times(Q_);
+        let M = proj_mat;
+        let M1 = vec4(M[0][0], M[0][1], M[0][2], M[0][3]);
+        let M2 = vec4(M[1][0], M[1][1], M[1][2], M[1][3]);
+        let M3 = vec4(M[2][0], M[2][1], M[2][2], M[2][3]);
+        let M4 = vec4(M[3][0], M[3][1], M[3][2], M[3][3]);
+
+        let M_ = new Mat4();
+        M_[0] = M1;
+        M_[1] = M2;
+        M_[2] = ( C.minus(M4) ).times( 2 * M4.dot(Q) / C.dot(Q) );
+        M_[3] = M4;
+
+        // console.log(M_)
+
+        return M_;
+    }
+
     draw_orange_portal(context, program_state, t){
         if(this.portal_orange.normal.dot(this.main_camera.look_dir) > 0){
             this.reset_texture(this.scratchpad_orange_portal, this.scratchpad_context_orange_portal, this.texture_orange_portal, this.result_img_orange_portal);
@@ -360,7 +382,9 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         //  RENDER FROM MAIN CAMERA
 
         program_state.set_camera(this.main_camera.transform);
-        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
+
+        let mat = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
+        program_state.projection_transform = this.get_oblique_projection_matrix(mat, Mat4.inverse(mat), vec4(.6, 0, -.8, -1.5));
 
         this.draw_visible_scene(context, program_state, t);
         this.draw_portal(context, program_state, this.portal_blue, this.materials.blue_portal);
