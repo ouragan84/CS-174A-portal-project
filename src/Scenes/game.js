@@ -432,7 +432,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         const portal_lights = this.projectiles.map((projectile) => {
             //use size = 15 for more normal light effect
             const size = 100* Math.sin(6* t) + 10
-            return new Light(projectile.newPos.to4(true), projectile.color, size)
+            return new Light(projectile.newPos.to4(true), projectile.color, 15)
         })
         program_state.lights = [new Light(vec4(-5, 5, 5, 1), color(1, 1, 1, 1), 100), ...portal_lights];
 
