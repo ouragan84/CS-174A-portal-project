@@ -1,4 +1,5 @@
 import {defs, tiny} from '/src/lib/common.js';
+import {Body} from "./examples/collisions-demo.js";
 // Pull these names into this module's scope for convenience:
 const {vec3, vec4, color, hex_color, Matrix, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
 const {Phong_Shader, Fake_Bump_Map} = defs;
@@ -19,7 +20,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             quad: new defs.Square(),
             circle: new defs.Regular_2D_Polygon(1, 48),
             box: new defs.Cube(),
-            square: new defs.Square()
+            square: new defs.Square(),
+            sphere: new defs.Subdivision_Sphere(4),
         }
 
         const screen_height = 600;
@@ -56,6 +58,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                     {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
                 default: new Material(new defs.Phong_Shader(),
                     {ambient: 1, diffusivity: 0.1, specularity: 0.1, color: hex_color("#6da8e3")}),
+                projectile: new Material(new defs.Phong_Shader(), {ambient: .5, diffusivity: 0.1}) //probably change
             }
 
         this.spin = 0;
@@ -107,10 +110,16 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             }
         }
 
+        this.last_fired = Date.now();
+        this.projectiles = []
+        this.collider = {intersect_test: Body.intersect_cube, points: new defs.Subdivision_Sphere(4), leeway: .3}
+
         this.compute_portal_transform( this.portal_blue);
         this.compute_portal_transform( this.portal_orange);
+        this.wall_bodies = []
         this.wall_transforms = this.do_walls_calc(Mat4.identity())
         this.ground_transforms = this.do_ground_calc(Mat4.identity(), true)
+
     }
 
     get_cosine_interpolation(min, max, period, t, t_offset){
@@ -133,6 +142,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.result_img_orange_portal = this.control_panel.appendChild(Object.assign(document.createElement("img"),
             {style: "width:200px; height:" + 200 * this.aspect_ratio + "px"}));
 
+        this.key_triggered_button("Left Click (blue)", ["["], () => this.shoot_projectile("blue"))
+        this.key_triggered_button("Right Click (orange)", ["]"], () => this.shoot_projectile("orange"))
 
         this.key_triggered_button("Up", [" "], () => this.main_camera.pos_dir[1] = 1, undefined, () => this.main_camera.pos_dir[1] = 0);
         this.key_triggered_button("Forward", ["w"], () => this.main_camera.pos_dir[2] = -1, undefined, () => this.main_camera.pos_dir[2] = 0);
@@ -201,6 +212,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     draw_visible_scene(context, program_state, t){
         this.draw_ground(context, program_state)
         this.draw_walls(context, program_state)
+        this.draw_projectiles(context, program_state)
 
         this.shapes.box.draw(context, program_state, this.cube_1, this.materials.earth);
 
@@ -343,22 +355,96 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
     }
 
-    display(context, program_state) {
+    shoot_projectile(type) {
+        //limit shooting to every _ seconds
+        if(Date.now() - this.last_fired < 1000) return;
+        this.last_fired = Date.now();
 
+        const color = type === "orange" ? hex_color("FFA500") : hex_color("0059FF");
+        this.projectiles.push({
+            type,
+            color,
+            start: this.main_camera.pos.copy(),
+            newPos: this.main_camera.pos.copy(),
+            time: Date.now(),
+            dir: this.main_camera.look_dir.copy(),
+            transform: null
+        })
+    }
+
+    update_projectiles(dt) {
+        const origin = Mat4.identity();
+        //const projectile_scale = 0.1
+        const projectile_scale = 0.025 * Math.sin(6 * dt) + 0.14;
+        for(let i = 0; i < this.projectiles.length; ++i) {
+            let time_diff = (Date.now() - this.projectiles[i].time)/100
+            this.projectiles[i].newPos = this.projectiles[i].start.plus(this.projectiles[i].dir.times(time_diff))
+            this.projectiles[i].transform = origin
+                .times(Mat4.translation(this.projectiles[i].newPos[0], this.projectiles[i].newPos[1], this.projectiles[i].newPos[2]))
+                .times(Mat4.scale(projectile_scale, projectile_scale, projectile_scale))
+
+            //projectiles disappear after 10 seconds
+            if(time_diff > 100) {
+                this.projectiles.splice(i, 1)
+                i--;
+                continue;
+            }
+
+            let projectile_body = new Body(this.shapes.sphere, this.materials.projectile,
+                vec3(projectile_scale, projectile_scale, projectile_scale))
+            projectile_body.emplace(this.projectiles[i].transform, vec3(0,0,0), 0, vec3(0,0,0))
+            projectile_body.inverse = Mat4.inverse(this.projectiles[i].transform)
+
+            for (let body of this.wall_bodies) {
+                // Pass the two bodies and the collision shape to check_if_colliding():
+                if (!projectile_body.check_if_colliding(body, this.collider))
+                    continue;
+
+                console.log(body.normal, projectile_body.center)
+                if(this.projectiles[i].type === "blue") {
+                    //this.portal_blue.pos = projectile_body.center.minus(body.normal.times(0.5)).plus(body.normal.times(0.01));
+                    this.portal_blue.pos = projectile_body.center;
+                    this.portal_blue.normal = body.normal;
+                    this.compute_portal_transform(this.portal_blue)
+                } else {
+                    //this.portal_orange.pos = projectile_body.center.minus(body.normal.times(0.5)).plus(body.normal.times(0.01));
+                    this.portal_orange.pos = projectile_body.center
+                    this.portal_orange.normal = body.normal;
+                    this.compute_portal_transform(this.portal_orange)
+                }
+                this.projectiles.splice(i, 1)
+                i--;
+                break;
+            }
+        }
+    }
+
+    draw_projectiles(context, program_state) {
+        for(let projectile of this.projectiles) {
+            this.shapes.sphere.draw(context, program_state, projectile.transform, this.materials.projectile.override({color: projectile.color}))
+        }
+    }
+
+    display(context, program_state) {
         // ALL FRAME UPDATES
 
-        program_state.lights = [new Light(vec4(-5, 5, 5, 1), color(1, 1, 1, 1), 100000)];
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
+        const portal_lights = this.projectiles.map((projectile) => {
+            //use size = 15 for more normal light effect
+            const size = 100* Math.sin(6* t) + 10
+            return new Light(projectile.newPos.to4(true), projectile.color, 15)
+        })
+        program_state.lights = [new Light(vec4(-5, 5, 5, 1), color(1, 1, 1, 1), 100), ...portal_lights];
 
         this.cube_1.post_multiply(Mat4.rotation(this.spin * dt * 30 / 60 * 2 * Math.PI, 1, 0, 0));
 
         this.update_main_camera(dt);
+        this.update_projectiles(dt);
 
         this.draw_portals_recursive(context, program_state, t);
 
 
         //  RENDER FROM MAIN CAMERA
-
         program_state.set_camera(this.main_camera.transform);
         program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
 
@@ -404,29 +490,30 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
     do_walls_calc(model_transform, height = 2) {
         const walls = {
+            // returns [transform, normal]
             right: (i, j) => {
-                return model_transform
+                return [model_transform
                     .times(Mat4.translation(18, j*4+2, i*4))
                     .times(Mat4.scale(1, 2, 2))
-                    .times(Mat4.rotation(Math.PI/2, 0, 1, 0))
+                    .times(Mat4.rotation(Math.PI/2, 0, 1, 0)), vec3(-1, 0, 0)]
             },
             left: (i, j) => {
-                return model_transform
+                return [model_transform
                     .times(Mat4.translation(-22, j*4+2, i*4))
                     .times(Mat4.scale(1, 2, 2))
-                    .times(Mat4.rotation(Math.PI/2, 0, 1, 0))
+                    .times(Mat4.rotation(Math.PI/2, 0, 1, 0)), vec3(1, 0, 0)]
             },
             far: (i, j) => {
-                return model_transform
+                return [model_transform
                     .times(Mat4.translation(i*4, j*4+2, -22))
                     .times(Mat4.scale(2, 2, 1))
-                    .times(Mat4.rotation(Math.PI/2, 0, 0, 1))
+                    .times(Mat4.rotation(Math.PI/2, 0, 0, 1)), vec3(0, 0, 1)]
             },
             near: (i, j) => {
-                return model_transform
+                return [model_transform
                     .times(Mat4.translation(i*4, j*4+2, 18))
                     .times(Mat4.scale(2, 2, 1))
-                    .times(Mat4.rotation(Math.PI/2, 0, 0, 1))
+                    .times(Mat4.rotation(Math.PI/2, 0, 0, 1)), vec3(0, 0, -1)]
             }
         }
 
@@ -434,17 +521,20 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         for(const [_, transform] of Object.entries(walls)) {
             for(let i = -5; i < 5; i++) {
                 for(let j = 0; j < height; j++) {
-                    wall_transforms.push(transform(i, j))
+                    const [temp_transform, normal] = transform(i, j)
+                    const temp_body = new Body(this.shapes.square, this.materials.plastic, vec3(2, 2, 2))
+                    temp_body.emplace(temp_transform, vec3(0,0,0), 0, vec3(0,0,0))
+                    temp_body.inverse = Mat4.inverse(temp_body.drawn_location)
+                    temp_body.normal = normal;
+
+                    wall_transforms.push(temp_transform)
+                    this.wall_bodies.push(temp_body)
                 }
             }
         }
         return wall_transforms;
     }
-
-
-
 }
-
 
 
 class Textured_Portal extends Shader {
