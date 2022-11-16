@@ -1,4 +1,5 @@
 import {tiny} from './tiny-graphics.js';
+
 import {widgets} from './tiny-graphics-widgets.js';
 // Pull these names into this module's scope for convenience:
 const {
@@ -840,10 +841,66 @@ const Movement_Controls = defs.Movement_Controls =
                 () => graphics_state.camera_inverse);
         }
 
+        mouse_position(e){
+            var movementX = e.movementX || e.mozMovementX;
+            var movementY = e.movementY || e.mozMovementY;
+
+            return vec(movementX, movementY);  
+        }
+
+
         add_mouse_controls(canvas) {
+            console.log("enter mouse controls ", canvas);
             // add_mouse_controls():  Attach HTML mouse events to the drawing canvas.
             // First, measure mouse steering, for rotating the flyaround camera:
+
+            //fps movement
+            //const canvas = document.getElementById("main-canvas");
+
+            // // setting up pointer lock for mouse control
+
+            // canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+            // document.exitPointerLcok = document.exitPointerLock || document.mozExitPointerLock;
+
+            // canvas.onclick = function() {
+            //     console.log("click");
+            //     canvas.requestPointerLock();
+            // };
+
             this.mouse = {"from_center": vec(0, 0)};
+
+            //fires whenever a change in pointer lock state occurs
+            // var mouse_position = mouse_position(e);
+            // document.addEventListener("mousemove", this.moveCallback, false)
+    
+
+            // document.addEventListener('pointerlockchange',changeCallback, false);
+            // document.addEventListener('mozpointerlockchange', changeCallback,false);
+        
+
+            // // if the pointer is locked, then listen to the mousemove and update the camera
+            // function changeCallback() {
+
+            //     console.log("in the changeCallback");
+            // if (canvas.pointerLockElement === canvas ||
+            //     canvas.mozPointerLockElement === canvas) {
+            //       console.log('The pointer lock status is now locked');
+            //       document.addEventListener("mousemove", moveCallback, false);
+
+            //   } else {
+            //       console.log('The pointer lock status is now unlocked');
+            //       document.addEventListener("mousemove", moveCallback, false);
+            //       this.unlockHook(this.canvas);
+                  
+            //   };
+            // }
+
+            // function moveCallback(e) {
+            //     self.mouse.from_center = vec2(e.movementX, e.movementY);
+            // }
+
+        
+        // }
             const mouse_position = (e, rect = canvas.getBoundingClientRect()) =>
                 vec(e.clientX - (rect.left + rect.right) / 2, e.clientY - (rect.bottom + rect.top) / 2);
             // Set up mouse response.  The last one stops us from reacting if the mouse leaves the canvas:
@@ -866,6 +923,10 @@ const Movement_Controls = defs.Movement_Controls =
         show_explanation(document_element) {
         }
 
+        mouseLook (deltaX, deltaY){
+            
+        }
+
         make_control_panel() {
             // make_control_panel(): Sets up a panel of interactive HTML elements, including
             // buttons with key bindings for affecting this scene, and live info readouts.
@@ -874,7 +935,7 @@ const Movement_Controls = defs.Movement_Controls =
                 + ", " + this.pos[2].toFixed(2));
             this.new_line();
             // The facing directions are surprisingly affected by the left hand rule:
-            this.live_string(box => box.textContent = "- Facing: " + ((this.z_axis[0] > 0 ? "West " : "East ")
+            this.live_string(box => box.textContent= "- Facing: " + ((this.z_axis[0] > 0 ? "West " : "East ")
                 + (this.z_axis[1] > 0 ? "Down " : "Up ") + (this.z_axis[2] > 0 ? "North" : "South")));
             this.new_line();
             this.new_line();
@@ -979,6 +1040,8 @@ const Movement_Controls = defs.Movement_Controls =
         }
 
         display(context, graphics_state, dt = graphics_state.animation_delta_time / 1000) {
+
+            // console.log("enter display ", context.canvas);
             // The whole process of acting upon controls begins here.
             const m = this.speed_multiplier * this.meters_per_frame,
                 r = this.speed_multiplier * this.radians_per_frame;
@@ -989,8 +1052,9 @@ const Movement_Controls = defs.Movement_Controls =
             }
 
             if (!this.mouse_enabled_canvases.has(context.canvas)) {
+                console.log("enter mouse enable canvases ", context.canvas);
                 this.add_mouse_controls(context.canvas);
-                this.mouse_enabled_canvases.add(context.canvas)
+                this.mouse_enabled_canvases.add(context.canvas);
             }
             // Move in first-person.  Scale the normal camera aiming speed by dt for smoothness:
             this.first_person_flyaround(dt * r, dt * m);
@@ -1015,6 +1079,8 @@ const Program_State_Viewer = defs.Program_State_Viewer =
         }
 
         display(context, program_state) {
+
+            console.log("enter another display");
             this.program_state = program_state;
         }
     }
