@@ -34,10 +34,11 @@ export class Room_Sandbox extends Scene {
 
         
 
-        //fps movement
-        this.yaw = 0.0;
-        this.pitch = 0.0;
-        this.sensitivity = 0.2;
+        // //fps movement
+        // this.yaw = Mat4.identity();
+        // this.pitch = Mat4.identity();
+        
+        // this.sensitivity = 0.2;
 
         this.eye_vector = vec3(0,5,20);
         this.look_at_vector = vec3(0,5,0);
@@ -45,62 +46,104 @@ export class Room_Sandbox extends Scene {
 
         // (eye vector, at vecotr, up vector)
         this.initial_camera_location = Mat4.look_at(this.eye_vector, this.look_at_vector, this.upvector);
+
+        // // this.mouse = {"from_center": vec(0,0)};
+        // // this.mouse = vec(0,0);
+
+        // // console.log("mouse from center is ", this.mouse.from_center);
+        //  // fps movement
+        //  const canvas = document.getElementById("main-canvas");
+
+        //  // setting up pointer lock for mouse control
+        //  canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+        //  document.exitPointerLcok = document.exitPointerLock || document.mozExitPointerLock;
+ 
+        //  canvas.onclick = function(){
+        //      console.log("click");
+        //      canvas.requestPointerLock();
+        //  };
+ 
         
+        //  // fires whenever a change in pointer lock state occurs
+        //  document.addEventListener('pointerlockchange',changeCallback, false);
+        //  document.addEventListener('mozpointerlockchange', changeCallback,false);
+ 
+        //  var mouse_position = function( e ) { console.log("movement ", vec( e.movementX, e.movementY )); return vec( e.movementX, e.movementY ); };
+        //  // if the pointer is locked, then listen to the mousemove and update the camera
+        //  function changeCallback() {
+        //      if (document.pointerLockElement === canvas ||
+        //          document.mozPointerLockElement === canvas) {
+        //            console.log('The pointer lock status is now locked');
+        //            document.addEventListener("mousemove", (e) => {
+        //                this.mouse = mouse_position(e); console.log("mouse position: ", this.mouse)}, false)
+ 
+        //        } else {
+        //            console.log('The pointer lock status is now unlocked');
+        //            document.addEventListener("mouseout", (e) => {
+        //                this.mouse = mouse_position(e);}, false)
+        //          //   this.unlockHook(this.canvas);
+                   
+        //        };
+
+        //     //    console.log("mouse position: ", this.mouse);
+        //  }
+
+    
+ 
+         
+ 
     }
 
     make_control_panel() {
-        console.log("the camera location is ", );
-        // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
-        // mouth control
-        // let x=0;
-        // let y=0;
+        //fps movement
+        this.yaw = Mat4.identity();
+        this.pitch = Mat4.identity();
+    
 
-        // const canvas = document.getElementById("main-canvas");
+        this.mouse = {"from_center": vec(0,0)};
+        // this.mouse = vec(0,0);
 
-        // // setting up pointer lock for mouse control
-        // canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
-        // document.exitPointerLcok = document.exitPointerLock || document.mozExitPointerLock;
+        // console.log("mouse from center is ", this.mouse.from_center);
+         // fps movement
+         const canvas = document.getElementById("main-canvas");
 
-        // canvas.onclick = function(){
-        //     console.log("click");
-        //     canvas.requestPointerLock();
-        // };
+         // setting up pointer lock for mouse control
+         canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+         document.exitPointerLcok = document.exitPointerLock || document.mozExitPointerLock;
+ 
+         canvas.onclick = function(){
+             console.log("click");
+             canvas.requestPointerLock();
+         };
+         
+         console.log("mouse from center: ", this.mouse.from_center);
+        
+         // fires whenever a change in pointer lock state occurs
+         document.addEventListener('pointerlockchange',changeCallback, false);
+         document.addEventListener('mozpointerlockchange', changeCallback,false);
+ 
+         var mouse_position = function( e ) { console.log("movement ", vec( e.movementX, e.movementY )); return vec( e.movementX, e.movementY ); };
+         // if the pointer is locked, then listen to the mousemove and update the camera
+         function changeCallback() {
+             if (document.pointerLockElement === canvas ||
+                 document.mozPointerLockElement === canvas) {
+                   console.log('The pointer lock status is now locked');
+                   canvas.addEventListener("mousemove", (e) => {
+                       this.mouse.from_center = mouse_position(e); console.log("mouse position: ", this.mouse.from_center)}, false)
+ 
+               } else {
+                   console.log('The pointer lock status is now unlocked');
+                   canvas.addEventListener("mouseout", (e) => {
+                    this.mouse.from_center = mouse_position(e);}, false)
+                 //   this.unlockHook(this.canvas);
+                   
+               };
 
-        // // fires whenever a change in pointer lock state occurs
-        // document.addEventListener('pointerlockchange',changeCallback, false);
-        // document.addEventListener('mozpointerlockchange', changeCallback,false);
+            //    console.log("mouse position: ", this.mouse);
+         }
 
-        // // if the pointer is locked, then listen to the mousemove and update the camera
-        // function changeCallback() {
-        //     if (canvas.pointerLockElement === canvas ||
-        //         canvas.mozPointerLockElement === canvas) {
-        //           console.log('The pointer lock status is now locked');
-        //           document.addEventListener("mousemove", updateCamera, false)
-
-        //       } else {
-        //           console.log('The pointer lock status is now unlocked');
-        //           document.addEventListener("mousemove", updateCamera, false)
-                  
-        //       };
-        // }
-
-        // function updateCamera(e) {
-
-        // }
-
-
-
-        // canvas.addEventListener("mousemove",(e) => {
-        //     console.log('x: ',e.x, 'y: ', e.y);
-        //     console.log('offset x: ',e.offsetX, 'offset y: ', e.offsetY);
-        //     console.log('movement x: ',e.movementX, 'movement y: ', e.movementY);
-            
-        //     x = e.offsetX;
-        //     y = e.offsetY;
-        // });
-
-        // var frontDirection = vec3.create();
-
+      
+        
     }
 
     
@@ -119,72 +162,34 @@ export class Room_Sandbox extends Scene {
             // Define the global camera and projection matrices, which are stored in program_state.
             program_state.set_camera(this.initial_camera_location);
         }
-        console.log("initial camera location: ", this.initial_camera_location);
-        console.log("eye vector ", this.eye_vector, " look at vector ", this.look_at_vector, " up vector ", this.upvector);
+        // console.log("initial camera location: ", this.initial_camera_location);
+        // console.log("eye vector ", this.eye_vector, " look at vector ", this.look_at_vector, " up vector ", this.upvector);
 
 
-        // fps movement
-        const canvas = document.getElementById("main-canvas");
+       
 
-        // setting up pointer lock for mouse control
-        canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
-        document.exitPointerLcok = document.exitPointerLock || document.mozExitPointerLock;
+        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
 
-        canvas.onclick = function(){
-            console.log("click");
-            canvas.requestPointerLock();
-        };
+        var leeway = 70, degrees_per_frame = 0.004*dt*1000, meters_per_frame = this.sensitivity * dt * 1000;
 
-        // fires whenever a change in pointer lock state occurs
-        document.addEventListener('pointerlockchange',changeCallback, false);
-        document.addEventListener('mozpointerlockchange', changeCallback,false);
+        if (this.mouse.from_center != undefined){
 
-        // if the pointer is locked, then listen to the mousemove and update the camera
-        function changeCallback() {
-            if (canvas.pointerLockElement === canvas ||
-                canvas.mozPointerLockElement === canvas) {
-                  console.log('The pointer lock status is now locked');
-                  document.addEventListener("mousemove", updateCamera, false)
+            // console.log("enter if statement ", this.mouse);
 
-              } else {
-                  console.log('The pointer lock status is now unlocked');
-                  document.addEventListener("mousemove", updateCamera, false)
-                //   this.unlockHook(this.canvas);
-                  
-              };
-        }
+            if(this.mouse.from_center[0] != 0 && this.mouse.from_center[1] !=0){
 
-        function degree_to_radians(degrees){
-            var pi = Math.PI;
-            return degrees*(pi/180);
+                console.log("enter the double if statement");
+                this.yaw = (Mat4.rotation(this.mouse.from_center[0]*degrees_per_frame,0,1,0))*(this.yaw);
+                this.pitch = (Mat4.rotation(this.mouse.from_center[1]*degrees_per_frame,1,0,0))*(this.pitch);
+
+                let new_camera = (this.yaw)*(this.pitch)*(this.initial_camera_location);
+                console.log("update camera location: ", program_state.set_camera(new_camera));
+            }
+
         }
 
         
 
-        function updateCamera(e) {
-            
-            this.yaw += (degree_to_radians(e.movementX*(this.sensitivity)));
-            this.pitch += (degree_to_radians(e.movementY*(this.sensitivity)));
-
-            console.log("yaw is ", Math.ceil(degree_to_radians(e.movementX*(this.sensitivity))));
-            console.log("pitch is ", degree_to_radians(e.movementY*(this.sensitivity)));
-
-            // the highest angle the player can look up to is 90 degrees
-            if (this.pitch > (degree_to_radians(90))){
-                this.pitch = (degree_to_radians(90));
-            }
-
-            if (this.pitch < (degree_to_radians(-90))){
-                this.pitch = ((degree_to_radians(-90)));
-            }
-
-            this.look_at_vector = vec3(this.yaw, this.pitch, 0);
-            let updatedCamera = Mat4.look_at(this.eye_vector,this.look_at, this.upvector);
-            program_state.set_camera(updatedCamera);
-
-        }
-
-        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
         // context.scratchpad.controls.display(context,program_state,t);
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, .1, 1000);

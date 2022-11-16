@@ -824,6 +824,7 @@ const Movement_Controls = defs.Movement_Controls =
 
             this.mouse_enabled_canvases = new Set();
             this.will_take_over_graphics_state = true;
+    
         }
 
         set_recipient(matrix_closure, inverse_closure) {
@@ -854,53 +855,8 @@ const Movement_Controls = defs.Movement_Controls =
             // add_mouse_controls():  Attach HTML mouse events to the drawing canvas.
             // First, measure mouse steering, for rotating the flyaround camera:
 
-            //fps movement
-            //const canvas = document.getElementById("main-canvas");
-
-            // // setting up pointer lock for mouse control
-
-            // canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
-            // document.exitPointerLcok = document.exitPointerLock || document.mozExitPointerLock;
-
-            // canvas.onclick = function() {
-            //     console.log("click");
-            //     canvas.requestPointerLock();
-            // };
-
             this.mouse = {"from_center": vec(0, 0)};
 
-            //fires whenever a change in pointer lock state occurs
-            // var mouse_position = mouse_position(e);
-            // document.addEventListener("mousemove", this.moveCallback, false)
-    
-
-            // document.addEventListener('pointerlockchange',changeCallback, false);
-            // document.addEventListener('mozpointerlockchange', changeCallback,false);
-        
-
-            // // if the pointer is locked, then listen to the mousemove and update the camera
-            // function changeCallback() {
-
-            //     console.log("in the changeCallback");
-            // if (canvas.pointerLockElement === canvas ||
-            //     canvas.mozPointerLockElement === canvas) {
-            //       console.log('The pointer lock status is now locked');
-            //       document.addEventListener("mousemove", moveCallback, false);
-
-            //   } else {
-            //       console.log('The pointer lock status is now unlocked');
-            //       document.addEventListener("mousemove", moveCallback, false);
-            //       this.unlockHook(this.canvas);
-                  
-            //   };
-            // }
-
-            // function moveCallback(e) {
-            //     self.mouse.from_center = vec2(e.movementX, e.movementY);
-            // }
-
-        
-        // }
             const mouse_position = (e, rect = canvas.getBoundingClientRect()) =>
                 vec(e.clientX - (rect.left + rect.right) / 2, e.clientY - (rect.bottom + rect.top) / 2);
             // Set up mouse response.  The last one stops us from reacting if the mouse leaves the canvas:
@@ -923,9 +879,7 @@ const Movement_Controls = defs.Movement_Controls =
         show_explanation(document_element) {
         }
 
-        mouseLook (deltaX, deltaY){
-            
-        }
+     
 
         make_control_panel() {
             // make_control_panel(): Sets up a panel of interactive HTML elements, including
