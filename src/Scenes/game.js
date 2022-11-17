@@ -90,7 +90,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                 look_dir: vec3(),
                 top: vec3(),
                 transform: null
-            }
+            },
+            body: null
         }
 
         this.portal_orange = {
@@ -107,7 +108,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                 look_dir: vec3(),
                 top: vec3(),
                 transform: null
-            }
+            },
+            body: null
         }
 
         this.last_fired = Date.now();
@@ -374,8 +376,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
     update_projectiles(dt) {
         const origin = Mat4.identity();
-        //const projectile_scale = 0.1
-        const projectile_scale = 0.025 * Math.sin(6 * dt) + 0.14;
+        const projectile_scale = 0.1
+        // const projectile_scale = 0.025 * Math.sin(6 * dt) + 0.14;
         for(let i = 0; i < this.projectiles.length; ++i) {
             let time_diff = (Date.now() - this.projectiles[i].time)/100
             this.projectiles[i].newPos = this.projectiles[i].start.plus(this.projectiles[i].dir.times(time_diff))
@@ -400,15 +402,14 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                 if (!projectile_body.check_if_colliding(body, this.collider))
                     continue;
 
-                console.log(body.normal, projectile_body.center)
-                if(this.projectiles[i].type === "blue") {
-                    //this.portal_blue.pos = projectile_body.center.minus(body.normal.times(0.5)).plus(body.normal.times(0.01));
-                    this.portal_blue.pos = projectile_body.center;
+                if(this.projectiles[i].type === "blue" && this.portal_orange.body !== body) {
+                    this.portal_blue.body = body;
+                    this.portal_blue.pos = body.center.plus(body.normal.times(0.01))
                     this.portal_blue.normal = body.normal;
                     this.compute_portal_transform(this.portal_blue)
-                } else {
-                    //this.portal_orange.pos = projectile_body.center.minus(body.normal.times(0.5)).plus(body.normal.times(0.01));
-                    this.portal_orange.pos = projectile_body.center
+                } else if(this.projectiles[i].type === "orange" && this.portal_blue.body !== body) {
+                    this.portal_orange.body = body;
+                    this.portal_orange.pos = body.center.plus(body.normal.times(0.01))
                     this.portal_orange.normal = body.normal;
                     this.compute_portal_transform(this.portal_orange)
                 }
@@ -488,41 +489,41 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         }
     }
 
-    do_walls_calc(model_transform, height = 2) {
+    do_walls_calc(model_transform, height = 4) {
         const walls = {
             // returns [transform, normal]
             right: (i, j) => {
                 return [model_transform
-                    .times(Mat4.translation(18, j*4+2, i*4))
-                    .times(Mat4.scale(1, 2, 2))
+                    .times(Mat4.translation(18, j*2+1, i*2-1))
+                    .times(Mat4.scale(1, 1, 1))
                     .times(Mat4.rotation(Math.PI/2, 0, 1, 0)), vec3(-1, 0, 0)]
             },
             left: (i, j) => {
                 return [model_transform
-                    .times(Mat4.translation(-22, j*4+2, i*4))
-                    .times(Mat4.scale(1, 2, 2))
+                    .times(Mat4.translation(-22, j*2+1, i*2-1))
+                    .times(Mat4.scale(1, 1, 1))
                     .times(Mat4.rotation(Math.PI/2, 0, 1, 0)), vec3(1, 0, 0)]
             },
             far: (i, j) => {
                 return [model_transform
-                    .times(Mat4.translation(i*4, j*4+2, -22))
-                    .times(Mat4.scale(2, 2, 1))
+                    .times(Mat4.translation(i*2-1, j*2+1, -22))
+                    .times(Mat4.scale(1, 1, 1))
                     .times(Mat4.rotation(Math.PI/2, 0, 0, 1)), vec3(0, 0, 1)]
             },
             near: (i, j) => {
                 return [model_transform
-                    .times(Mat4.translation(i*4, j*4+2, 18))
-                    .times(Mat4.scale(2, 2, 1))
+                    .times(Mat4.translation(i*2-1, j*2+1, 18))
+                    .times(Mat4.scale(1, 1, 1))
                     .times(Mat4.rotation(Math.PI/2, 0, 0, 1)), vec3(0, 0, -1)]
             }
         }
 
         let wall_transforms = []
         for(const [_, transform] of Object.entries(walls)) {
-            for(let i = -5; i < 5; i++) {
+            for(let i = -10; i < 10; i++) {
                 for(let j = 0; j < height; j++) {
                     const [temp_transform, normal] = transform(i, j)
-                    const temp_body = new Body(this.shapes.square, this.materials.plastic, vec3(2, 2, 2))
+                    const temp_body = new Body(this.shapes.square, this.materials.plastic, vec3(1, 1, 1))
                     temp_body.emplace(temp_transform, vec3(0,0,0), 0, vec3(0,0,0))
                     temp_body.inverse = Mat4.inverse(temp_body.drawn_location)
                     temp_body.normal = normal;
