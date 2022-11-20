@@ -227,6 +227,11 @@ export class Portal_Room extends Scene {                   // **Scene_To_Texture
             .times(Mat4.translation(-5,0,10))
             .times(Mat4.scale(.3,.3,.3)), 
             this.materials.phong.override({color: hex_color("#2222FF")}));
+
+        this.shapes.box.draw(context, program_state, Mat4.identity()
+            .times(Mat4.translation(0, 0, 0))
+            .times(Mat4.scale(.3,.3,.3)), 
+            this.materials.phong.override({color: hex_color("#00FFFF")}));
     }
 
     draw_portal(context, program_state, portal, material, draw_filled=false){

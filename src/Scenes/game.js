@@ -16,44 +16,37 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     constructor() {               // Request the camera, shapes, and materials our Scene will need:
         super();
         this.shapes = {
-            quad: new defs.Square(),
             circle: new defs.Regular_2D_Polygon(1, 48),
             box: new defs.Cube(),
             square: new defs.Square()
         }
 
-        const screen_height = 600;
-        const screen_width = 1080;
+        this.view_options = {
+            screen_height: 600,
+            screen_width: 1080,
+            far:100,
+            near:0.01,
+            half_angle: Math.PI / 4
+        }
 
-        this.scratchpad_blue_portal = document.createElement('canvas');
-        // A hidden canvas for re-sizing the real canvas to be square:
-        this.scratchpad_context_blue_portal = this.scratchpad_blue_portal.getContext('2d');
-        this.scratchpad_blue_portal.width = screen_width;
-        this.scratchpad_blue_portal.height = screen_height;                // Initial image source: Blank gif file:
-        this.texture_blue_portal = new Texture("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
-        // this.result_img_blue_portal = new Image();
+        this.view_options.proj_mat = Mat4.perspective(this.view_options.half_angle, this.view_options.screen_width / this.view_options.screen_height, this.view_options.near, this.view_options.far);
 
-
-        this.scratchpad_orange_portal = document.createElement('canvas');
-        // A hidden canvas for re-sizing the real canvas to be square:
-        this.scratchpad_context_orange_portal = this.scratchpad_orange_portal.getContext('2d');
-        this.scratchpad_orange_portal.width = screen_width;
-        this.scratchpad_orange_portal.height = screen_height;                // Initial image source: Blank gif file:
-        this.texture_orange_portal = new Texture("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
-        // this.result_img_orange_portal = new Image();
-
-        // console.log(this.texture);
+        this.textures = {
+            blue_portal_primary: this.generate_texture_attributes( this.view_options.screen_width, this.view_options.screen_height, hex_color("#0066BB")),
+            blue_portal_secondary: this.generate_texture_attributes( this.view_options.screen_width, this.view_options.screen_height, hex_color("#0066BB")),
+            orange_portal_primary: this.generate_texture_attributes(this.view_options.screen_width, this.view_options.screen_height, hex_color("#FF6600")),
+            orange_portal_secondary: this.generate_texture_attributes( this.view_options.screen_width, this.view_options.screen_height, hex_color("#FF6600")),
+        }
 
         this.materials =
             {
                 earth: new Material(new Fake_Bump_Map(1), {ambient: .5, texture: new Texture("src/assets/earth.gif")}),
-                blue_portal: new Material(new Textured_Portal(), {texture: this.texture_blue_portal, screen_width:screen_width,
-                    screen_height:screen_height, color:hex_color("#0066BB"), distance_start:.9, distance_end:0.1, is_black:0}),
-                orange_portal: new Material(new Textured_Portal(), {texture: this.texture_orange_portal, screen_width:screen_width,
-                    screen_height:screen_height, color:hex_color("#BB6600"), distance_start:.9, distance_end:0.1, is_black:0}),
+
                 phong: new Material(new Phong_Shader(), {ambient: .5}),
+
                 plastic: new Material(new defs.Phong_Shader(),
                     {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
+
                 default: new Material(new defs.Phong_Shader(),
                     {ambient: 1, diffusivity: 0.1, specularity: 0.1, color: hex_color("#6da8e3")}),
             }
@@ -109,8 +102,25 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
         this.compute_portal_transform( this.portal_blue);
         this.compute_portal_transform( this.portal_orange);
+
         this.wall_transforms = this.do_walls_calc(Mat4.identity())
         this.ground_transforms = this.do_ground_calc(Mat4.identity(), true)
+    }
+    
+    generate_texture_attributes(width, height, color){
+        let place = {};
+
+        place.scratchpad = document.createElement('canvas');
+        place.scratchpad_context = place.scratchpad.getContext('2d');
+        place.scratchpad.width = width;
+        place.scratchpad.height = height;
+        place.texture = new Texture("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
+        place.material = new Material(new Textured_Portal(), {texture: place.texture, screen_width:width,
+            screen_height:height, color:color, distance_start:.9, distance_end:0.1});
+
+        place.result_img = null;
+
+        return place;
     }
 
     get_cosine_interpolation(min, max, period, t, t_offset){
@@ -120,28 +130,37 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     make_control_panel() {
         this.key_triggered_button("Cube rotation", ["c"], () => this.spin ^= 1);
 
-        this.live_string(box => {
-            box.textContent = this.spin
-        });
+        // this.live_string(box => {
+        //     box.textContent = this.spin
+        // });
+
         this.new_line();
 
-        this.result_img_blue_portal = this.control_panel.appendChild(Object.assign(document.createElement("img"),
+        this.textures.blue_portal_primary.result_img = this.control_panel.appendChild(Object.assign(document.createElement("img"),
+            {style: "width:200px; height:" + 200 * this.aspect_ratio + "px"}));
+
+        this.textures.blue_portal_secondary.result_img = this.control_panel.appendChild(Object.assign(document.createElement("img"),
             {style: "width:200px; height:" + 200 * this.aspect_ratio + "px"}));
 
         this.new_line();
 
-        this.result_img_orange_portal = this.control_panel.appendChild(Object.assign(document.createElement("img"),
+        this.textures.orange_portal_primary.result_img = this.control_panel.appendChild(Object.assign(document.createElement("img"),
             {style: "width:200px; height:" + 200 * this.aspect_ratio + "px"}));
 
+        this.textures.orange_portal_secondary.result_img = this.control_panel.appendChild(Object.assign(document.createElement("img"),
+            {style: "width:200px; height:" + 200 * this.aspect_ratio + "px"}));
+
+        this.new_line();
 
         this.key_triggered_button("Up", [" "], () => this.main_camera.pos_dir[1] = 1, undefined, () => this.main_camera.pos_dir[1] = 0);
+        this.key_triggered_button("Down", ["z"], () => this.main_camera.pos_dir[1] = -1, undefined, () => this.main_camera.pos_dir[1] = 0);
+        this.new_line();
         this.key_triggered_button("Forward", ["w"], () => this.main_camera.pos_dir[2] = -1, undefined, () => this.main_camera.pos_dir[2] = 0);
+        this.key_triggered_button("Back", ["s"], () => this.main_camera.pos_dir[2] = 1, undefined, () => this.main_camera.pos_dir[2] = 0);
         this.new_line();
         this.key_triggered_button("Left", ["a"], () => this.main_camera.pos_dir[0] = -1, undefined, () => this.main_camera.pos_dir[0] = 0);
-        this.key_triggered_button("Back", ["s"], () => this.main_camera.pos_dir[2] = 1, undefined, () => this.main_camera.pos_dir[2] = 0);
         this.key_triggered_button("Right", ["d"], () => this.main_camera.pos_dir[0] = 1, undefined, () => this.main_camera.pos_dir[0] = 0);
         this.new_line();
-        this.key_triggered_button("Down", ["z"], () => this.main_camera.pos_dir[1] = -1, undefined, () => this.main_camera.pos_dir[1] = 0);
 
         this.new_line();
         this.key_triggered_button("Look Left", ["q"], () => this.main_camera.rot_dir[0] = 1, undefined, () => this.main_camera.rot_dir[0] = 0);
@@ -149,9 +168,6 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.new_line();
         this.key_triggered_button("Look Up", ["r"], () => this.main_camera.rot_dir[1] = 1, undefined, () => this.main_camera.rot_dir[1] = 0);
         this.key_triggered_button("Look Down", ["f"], () => this.main_camera.rot_dir[1] = -1, undefined, () => this.main_camera.rot_dir[1] = 0);
-
-        this.new_line();
-        this.key_triggered_button("Print Camera", ["x"], () => console.log(this.main_camera));
 
     }
 
@@ -177,25 +193,28 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         // to act on our SRC setting once:
         if (this.skipped_first_frame)
             // Update the texture with the current scene:
-            texture.copy_onto_graphics_card(context.context, false);
+            texture.texture.copy_onto_graphics_card(context.context, false);
         this.skipped_first_frame = true;
 
         // Start over on a new drawing, never displaying the prior one:
         context.context.clear(context.context.COLOR_BUFFER_BIT | context.context.DEPTH_BUFFER_BIT);
+
+        // texture.scratchpad_context.context.clear(context.context.COLOR_BUFFER_BIT | context.context.DEPTH_BUFFER_BIT);
     }
 
-    update_texture(context, scratchpad, scratchpad_context, texture, result_img){
-        scratchpad_context.drawImage(context.canvas, 0, 0,  scratchpad.width, scratchpad.width, 0, 0, scratchpad.width, scratchpad.width);
-        result_img.src = scratchpad.toDataURL("image/png");
+    update_texture(texture, context){
+        texture.scratchpad_context.drawImage(context.canvas, 0, 0,  texture.scratchpad.width, 
+            texture.scratchpad.width, 0, 0, texture.scratchpad.width, texture.scratchpad.width);
+        texture.result_img.src = texture.scratchpad.toDataURL("image/png");
 
-        texture.image.src = result_img.src;
+        texture.texture.image.src = texture.result_img.src;
     }
 
-    reset_texture(scratchpad, scratchpad_context, texture, result_img){
-        scratchpad_context.filltyle = "black";
-        scratchpad_context.fillRect( 0, 0,  scratchpad.width, scratchpad.width);
-        result_img.src = scratchpad.toDataURL("image/png");
-        texture.image.src = result_img.src;
+    reset_texture(texture){
+        texture.scratchpad_context.filltyle = "black";
+        texture.scratchpad_context.fillRect( 0, 0,  texture.scratchpad.width, texture.scratchpad.width);
+        texture.result_img.src = texture.scratchpad.toDataURL("image/png");
+        texture.texture.image.src =texture.result_img.src;
     }
 
     draw_visible_scene(context, program_state, t){
@@ -218,6 +237,11 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                 .times(Mat4.translation(2, .5, 8))
                 .times(Mat4.scale(.5,.5,this.get_cosine_interpolation(1, .2, 1.2, t, 0))),
             this.materials.phong.override({color: hex_color("#f76d28")}));
+
+        this.shapes.box.draw(context, program_state, Mat4.identity()
+                .times(Mat4.translation(0,0,0))
+                .times(Mat4.scale(.2,.2,.2)),
+            this.materials.phong.override({color: hex_color("#00FFFF")}));
     }
 
     draw_portal(context, program_state, portal, material, draw_filled=false){
@@ -276,48 +300,71 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         portal.basis_transform = trans;
     }
 
-    get_oblique_projection_matrix(proj_mat, inv_proj_mat, cam_space_plane){
-        let C = cam_space_plane;
-        let C_ = (inv_proj_mat).transposed().times(C);
-        let Q_ = vec4(Math.sign(C_[0]), Math.sign(C_[1]), 1, 1)
-        let Q = inv_proj_mat.times(Q_);
-        let M = proj_mat;
-        let M1 = vec4(M[0][0], M[0][1], M[0][2], M[0][3]);
-        let M2 = vec4(M[1][0], M[1][1], M[1][2], M[1][3]);
-        let M3 = vec4(M[2][0], M[2][1], M[2][2], M[2][3]);
-        let M4 = vec4(M[3][0], M[3][1], M[3][2], M[3][3]);
+    get_oblique_projection_matrix(proj_mat, w_to_cam_mat, plane_normal, plane_origin){ // *orgasm*
 
-        let M_ = new Mat4();
-        M_[0] = M1;
-        M_[1] = M2;
-        M_[2] = ( C.minus(M4) ).times( 2 * M4.dot(Q) / C.dot(Q) );
-        M_[3] = M4;
+        // cam space conversion
+        let plane_normal_cam = w_to_cam_mat.times(plane_normal.to4(false));  // normal must lie inward w/ respect to view frustrum
+        let plane_origin_cam = w_to_cam_mat.times(plane_origin.to4(true)); 
 
-        // console.log(M_)
+        // dist from orgin, < 0 if normal is correct
+        let d = - plane_normal_cam.dot(plane_origin_cam);
+
+        // clip plane vector
+        let C = vec4(plane_normal_cam[0], plane_normal_cam[1], plane_normal_cam[2], d)
+
+        let M = proj_mat; //original proj mat
+        let M_ = new Mat4(); //new projmat
+
+        // deep copy
+        M_[0] = vec4(M[0][0], M[0][1], M[0][2], M[0][3]);
+        M_[1] = vec4(M[1][0], M[1][1], M[1][2], M[1][3]);
+        M_[2] = vec4(M[2][0], M[2][1], M[2][2], M[2][3]);
+        M_[3] = vec4(M[3][0], M[3][1], M[3][2], M[3][3]);
+
+        // see book
+        let vcamera = vec4((Math.sign(C[0]) - M[0][2]) / M[0][0],
+        (Math.sign(C[1]) - M[1][2]) / M[1][1],
+        1.0 ,M[2][2] / M[2][3]);
+
+        let m = - 1.0 / C.dot(vcamera);  
+
+        M_[2][0] = m * C[0];
+        M_[2][1] = m * C[1];
+        M_[2][2] = m * C[2] + 1.0;
+        M_[2][3] = m * C[3];
 
         return M_;
     }
 
     draw_orange_portal(context, program_state, t){
+
+
         if(this.portal_orange.normal.dot(this.main_camera.look_dir) > 0){
-            this.reset_texture(this.scratchpad_orange_portal, this.scratchpad_context_orange_portal, this.texture_orange_portal, this.result_img_orange_portal);
+            this.reset_texture(this.textures.orange_portal_primary);
+            this.reset_texture(this.textures.orange_portal_secondary);
             return;
         }
 
-        // this.update_portal_camera(this.portal_blue, this.portal_orange, this.portal_blue.camera, 2);
+
+
+        this.update_portal_camera(this.portal_blue, this.portal_orange, this.portal_blue.camera, 2);
 
         // RENDER FROM BLUE PORTAL PERSPECTIVE, PASTE ONTO ORANGE PORTAL
 
-        // program_state.set_camera(this.portal_blue.camera.transform);
-        // program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
+        program_state.set_camera(this.portal_blue.camera.transform);
+        program_state.projection_transform = this.get_oblique_projection_matrix(this.view_options.proj_mat, 
+            this.portal_blue.camera.transform, this.portal_blue.normal, this.portal_blue.pos);
 
-        // this.draw_visible_scene(context, program_state, t);
-        // this.draw_player(context, program_state);
-        // this.draw_portal(context, program_state, this.portal_orange, this.materials.orange_portal, true);
+        this.draw_visible_scene(context, program_state, t);
+        this.draw_player(context, program_state);
+        this.draw_portal(context, program_state, this.portal_orange, this.textures.orange_portal_secondary.material, true);
 
-        // this.update_texture(context, this.scratchpad_orange_portal, this.scratchpad_context_orange_portal, this.texture_orange_portal, this.result_img_orange_portal);
+        this.update_texture(this.textures.orange_portal_secondary, context);
 
-        // this.clear_buffer(context, this.texture_orange_portal);
+        this.clear_buffer(context, this.textures.orange_portal_secondary);
+
+
+
 
 
         this.update_portal_camera(this.portal_blue, this.portal_orange, this.portal_blue.camera, 1);
@@ -325,38 +372,62 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         // RENDER FROM BLUE PORTAL PERSPECTIVE, PASTE ONTO ORANGE PORTAL
 
         program_state.set_camera(this.portal_blue.camera.transform);
-        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
+        program_state.projection_transform = this.get_oblique_projection_matrix(this.view_options.proj_mat, 
+            this.portal_blue.camera.transform, this.portal_blue.normal, this.portal_blue.pos);
 
         this.draw_visible_scene(context, program_state, t);
         this.draw_player(context, program_state);
-        this.draw_portal(context, program_state, this.portal_orange, this.materials.orange_portal, true);
+        this.draw_portal(context, program_state, this.portal_orange, this.textures.orange_portal_secondary.material, false);
 
-        this.update_texture(context, this.scratchpad_orange_portal, this.scratchpad_context_orange_portal, this.texture_orange_portal, this.result_img_orange_portal);
+        this.update_texture(this.textures.orange_portal_primary, context);
 
-        this.clear_buffer(context, this.texture_orange_portal);
+        this.clear_buffer(context, this.textures.orange_portal_primary);
+
     }
 
     draw_blue_portal(context, program_state, t){
 
         if(this.portal_blue.normal.dot(this.main_camera.look_dir) > 0){
-            this.reset_texture(this.scratchpad_blue_portal, this.scratchpad_context_blue_portal,  this.texture_blue_portal, this.result_img_blue_portal);
+            this.reset_texture(this.textures.blue_portal_primary);
             return;
         }
+        
+
+
+        this.update_portal_camera(this.portal_orange, this.portal_blue, this.portal_orange.camera, 2);
+
+        // RENDER FROM ORANGE PORTAL PERSPECTIVE, PASTE ONTO BLUE PORTAL
+
+        program_state.set_camera(this.portal_orange.camera.transform);
+        program_state.projection_transform = this.get_oblique_projection_matrix(this.view_options.proj_mat, 
+            this.portal_orange.camera.transform, this.portal_orange.normal, this.portal_orange.pos);
+
+        this.draw_visible_scene(context, program_state, t);
+        this.draw_player(context, program_state);
+        this.draw_portal(context, program_state, this.portal_blue, this.textures.blue_portal_secondary.material, true);
+
+        this.update_texture(this.textures.blue_portal_secondary, context);
+
+        this.clear_buffer(context, this.textures.blue_portal_secondary);
+
+
 
         this.update_portal_camera(this.portal_orange, this.portal_blue, this.portal_orange.camera, 1);
 
         // RENDER FROM ORANGE PORTAL PERSPECTIVE, PASTE ONTO BLUE PORTAL
 
         program_state.set_camera(this.portal_orange.camera.transform);
-        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
+        program_state.projection_transform = this.get_oblique_projection_matrix(this.view_options.proj_mat, 
+            this.portal_orange.camera.transform, this.portal_orange.normal, this.portal_orange.pos);
 
         this.draw_visible_scene(context, program_state, t);
         this.draw_player(context, program_state);
-        this.draw_portal(context, program_state, this.portal_blue, this.materials.blue_portal, true);
+        this.draw_portal(context, program_state, this.portal_blue, this.textures.blue_portal_secondary.material, false);
 
-        this.update_texture(context, this.scratchpad_blue_portal, this.scratchpad_context_blue_portal, this.texture_blue_portal, this.result_img_blue_portal);
+        this.update_texture(this.textures.blue_portal_primary, context);
 
-        this.clear_buffer(context, this.texture_blue_portal);
+        this.clear_buffer(context, this.textures.blue_portal_primary);
+
     }
 
     draw_portals_recursive(context, program_state, t){
@@ -382,13 +453,14 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         //  RENDER FROM MAIN CAMERA
 
         program_state.set_camera(this.main_camera.transform);
+        program_state.projection_transform = this.view_options.proj_mat;
 
-        let mat = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
-        program_state.projection_transform = this.get_oblique_projection_matrix(mat, Mat4.inverse(mat), vec4(.6, 0, -.8, -1.5));
+            // this.shapes.box.draw(context, program_state, this.poop,
+            // this.materials.phong.override({color: hex_color("#906000")}));
 
         this.draw_visible_scene(context, program_state, t);
-        this.draw_portal(context, program_state, this.portal_blue, this.materials.blue_portal);
-        this.draw_portal(context, program_state, this.portal_orange, this.materials.orange_portal);
+        this.draw_portal(context, program_state, this.portal_blue, this.textures.blue_portal_primary.material);
+        this.draw_portal(context, program_state, this.portal_orange, this.textures.orange_portal_primary.material);
     }
 
     do_ground_calc(model_transform, draw_ceiling = false) {
@@ -514,22 +586,22 @@ class Textured_Portal extends Shader {
 
             void main(){                                              
                 vec2 pos_in_screen = vec2(gl_FragCoord.x/screen_width, gl_FragCoord.y/screen_height);
-                vec4 pixel_color;
-
+                
                 if(is_filled == 1){
-                    pixel_color = color;
-                }else{
-                    pixel_color = texture2D(texture, pos_in_screen);
+                    gl_FragColor = color;
+                    return;
+                }
 
-                    float dist = distance(center, point_position);
+                vec4 pixel_color = texture2D(texture, pos_in_screen);
 
-                    if( dist >= distance_start){
-                        if(dist <= distance_start + distance_end){
-                            float alpha = -(distance_start - dist) / distance_end;
-                            pixel_color = pixel_color*(1.0-alpha) + color*alpha;
-                        }else{
-                            pixel_color = color;
-                        }
+                float dist = distance(center, point_position);
+
+                if( dist >= distance_start){
+                    if(dist <= distance_start + distance_end){
+                        float alpha = -(distance_start - dist) / distance_end;
+                        pixel_color = pixel_color*(1.0-alpha) + color*alpha;
+                    }else{
+                        pixel_color = color;
                     }
                 }
 
