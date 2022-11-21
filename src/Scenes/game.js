@@ -130,10 +130,6 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     make_control_panel() {
         this.key_triggered_button("Cube rotation", ["c"], () => this.spin ^= 1);
 
-        // this.live_string(box => {
-        //     box.textContent = this.spin
-        // });
-
         this.new_line();
 
         this.textures.blue_portal_primary.result_img = this.control_panel.appendChild(Object.assign(document.createElement("img"),
@@ -286,8 +282,6 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             trans = trans.times(Mat4.inverse(this.to_basis( portal.top.cross(portal.normal.times(-1)), portal.top, portal.normal.times(-1), portal.pos)))
                 .times(this.to_basis( other.top.cross(other.normal), other.top, other.normal, other.pos));
 
-        // console.log(str, this.to_basis( other.top.cross(other.normal), other.top, other.normal, other.pos),
-        // Mat4.inverse(this.to_basis( portal.top.cross(portal.normal.times(-1)), portal.top, portal.normal.times(-1), portal.pos)));
 
         camera.look_dir = trans.times(this.main_camera.look_dir.to4(false)).to3();
         camera.top = trans.times(this.main_camera.top.to4(false)).to3();
