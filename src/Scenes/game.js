@@ -112,6 +112,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             body: null
         }
 
+        this.velocity_y = 0;
         this.last_fired = Date.now();
         this.projectiles = []
         this.collider = {intersect_test: Body.intersect_cube, points: new defs.Subdivision_Sphere(4), leeway: .3}
@@ -147,14 +148,14 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.key_triggered_button("Left Click (blue)", ["["], () => this.shoot_projectile("blue"))
         this.key_triggered_button("Right Click (orange)", ["]"], () => this.shoot_projectile("orange"))
 
-        this.key_triggered_button("Up", [" "], () => this.main_camera.pos_dir[1] = 1, undefined, () => this.main_camera.pos_dir[1] = 0);
+        this.key_triggered_button("Jump", [" "], () => this.jump());
         this.key_triggered_button("Forward", ["w"], () => this.main_camera.pos_dir[2] = -1, undefined, () => this.main_camera.pos_dir[2] = 0);
         this.new_line();
         this.key_triggered_button("Left", ["a"], () => this.main_camera.pos_dir[0] = -1, undefined, () => this.main_camera.pos_dir[0] = 0);
         this.key_triggered_button("Back", ["s"], () => this.main_camera.pos_dir[2] = 1, undefined, () => this.main_camera.pos_dir[2] = 0);
         this.key_triggered_button("Right", ["d"], () => this.main_camera.pos_dir[0] = 1, undefined, () => this.main_camera.pos_dir[0] = 0);
         this.new_line();
-        this.key_triggered_button("Down", ["z"], () => this.main_camera.pos_dir[1] = -1, undefined, () => this.main_camera.pos_dir[1] = 0);
+        //this.key_triggered_button("Down", ["z"], () => this.main_camera.pos_dir[1] = -1, undefined, () => this.main_camera.pos_dir[1] = 0);
 
         this.new_line();
         this.key_triggered_button("Look Left", ["q"], () => this.main_camera.rot_dir[0] = 1, undefined, () => this.main_camera.rot_dir[0] = 0);
@@ -426,6 +427,29 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         }
     }
 
+    jump() {
+        //limit to single jump
+        if(this.main_camera.pos[1] > 1.2) return;
+
+        this.velocity_y = .5;
+        this.main_camera.pos.add_by(vec3(0, 0.001, 0))
+    }
+
+    update_y_pos(dt) {
+        if(this.main_camera.pos[1] <= 1) {
+            this.main_camera.pos[1] = 1;
+            this.velocity_y = 0;
+            return;
+        }
+
+        this.velocity_y -= dt;
+        if(this.main_camera.pos[1] + this.velocity_y < 1) {
+            this.main_camera.pos[1] = 1;
+        } else {
+            this.main_camera.pos.add_by(vec3(0, this.velocity_y, 0))
+        }
+    }
+
     display(context, program_state) {
         // ALL FRAME UPDATES
 
@@ -439,6 +463,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
         this.cube_1.post_multiply(Mat4.rotation(this.spin * dt * 30 / 60 * 2 * Math.PI, 1, 0, 0));
 
+        this.update_y_pos(dt)
         this.update_main_camera(dt);
         this.update_projectiles(dt);
 
