@@ -21,14 +21,15 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             box: new defs.Cube(),
             square: new defs.Square(),
             sphere: new defs.Subdivision_Sphere(4),
+            portal: new defs.Rounded_Capped_Cylinder(3, 24),
         }
 
         this.view_options = {
             screen_height: 600,
             screen_width: 1080,
             far:100,
-            near:0.01,
-            half_angle: Math.PI / 4
+            near:0.005,
+            half_angle: Math.PI / 180 * 55
         }
 
         this.view_options.proj_mat = Mat4.perspective(this.view_options.half_angle, this.view_options.screen_width / this.view_options.screen_height, this.view_options.near, this.view_options.far);
@@ -75,7 +76,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
         this.portal_blue = {
             pos: vec3(5, 1, -2),
-            scale: vec3(1, 1, 1),
+            scale: vec3(1, 1, .1),
+            disp: vec3(0, 0, -.04),
             normal: vec3(0, 0, 1),
             top: vec3(0, 1, 0),
             color_behind: hex_color("#0080FF"),
@@ -93,7 +95,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
         this.portal_orange = {
             pos: vec3(-4, 1, 10),
-            scale: vec3(1, 1, 1),
+            scale: vec3(1, 1, .1),
+            disp: vec3(0, 0, -.049),
             normal: vec3(.6, 0, -.8),
             top: vec3(0, 1, 0),
             color_behind: hex_color("#FF8000"),
@@ -132,7 +135,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         place.scratchpad.height = height;
         place.texture = new Texture("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
         place.material = new Material(new Textured_Portal(), {texture: place.texture, screen_width:width,
-            screen_height:height, color:color, distance_start:.9, distance_end:0.1});
+            screen_height:height, color:color, distance_start:1.0, distance_end:0.1});
 
         place.result_img = null;
 
@@ -198,11 +201,11 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     }
 
     compute_portal_transform(portal){
-        portal.screen_transform =
-            this.to_basis( portal.top.cross(portal.normal), portal.top, portal.normal, portal.pos)
-                .times(Mat4.scale(portal.scale[0], portal.scale[1], portal.scale[2]))
+        let re_trans = this.to_basis( portal.top.cross(portal.normal), portal.top, portal.normal, portal.pos );
  
-        portal.inv_screen_transform = Mat4.inverse(portal.screen_transform );
+        portal.inv_screen_transform = Mat4.inverse(re_trans).times(Mat4.translation(portal.disp[0], portal.disp[1], portal.disp[2]))
+            .times(Mat4.scale(portal.scale[0], portal.scale[1], portal.scale[2]));
+        portal.screen_transform = Mat4.inverse(portal.inv_screen_transform);
     }
 
     clear_buffer(context, texture){
@@ -263,7 +266,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     }
 
     draw_portal(context, program_state, portal, material, draw_filled=false){
-        this.shapes.circle.draw(context, program_state, portal.inv_screen_transform, material.override({is_filled : (draw_filled?1:0)}));
+        this.shapes.portal.draw(context, program_state, portal.inv_screen_transform, material.override({is_filled : (draw_filled?1:0)}));
     }
 
     draw_player(context, program_state){
@@ -499,7 +502,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
                 if(this.projectiles[i].type === "blue" && this.portal_orange.body !== body) {
                     this.portal_blue.body = body;
-                    this.portal_blue.pos = body.center.plus(body.normal.times(0.01))
+                    this.portal_blue.pos = body.center.plus(body.normal.times(0.05))
                     this.portal_blue.normal = body.normal;
                     this.compute_portal_transform(this.portal_blue)
                 } else if(this.projectiles[i].type === "orange" && this.portal_blue.body !== body) {
@@ -526,7 +529,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         if(this.main_camera.pos[1] > 1.2) return;
 
         this.velocity_y = .5;
-        this.main_camera.pos.add_by(vec3(0, 0.001, 0))
+        this.main_camera.pos.add_by(vec3(0, 0.00001, 0))
     }
 
     update_y_pos(dt) {
@@ -553,7 +556,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         //     const size = 100* Math.sin(6* t) + 10
         //     return new Light(projectile.newPos.to4(true), projectile.color, 15)\
         // })
-        program_state.lights = [new Light(vec4(-5, 5, 5, 1), color(1, 1, 1, 1), 100) /*, ...portal_lights*/];
+        program_state.lights = [new Light(vec4(-5, 5, 5, 0), color(1, 1, 1, 1), 100) /*, ...portal_lights*/];
 
         this.cube_1.post_multiply(Mat4.rotation(this.spin * dt * 30 / 60 * 2 * Math.PI, 1, 0, 0));
 
