@@ -1,8 +1,8 @@
-import {defs, tiny} from '/src/lib/common.js';
+import {defs, tiny} from '../lib/common.js';
 import {Body} from "./examples/collisions-demo.js";
 // Pull these names into this module's scope for convenience:
 const {vec3, vec4, color, hex_color, Matrix, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
-const {Phong_Shader, Fake_Bump_Map} = defs;
+const {Phong_Shader, Fake_Bump_Map, Tex} = defs;
 
 export class Game extends Scene {                   // **Scene_To_Texture_Demo** is a crude way of doing multi-pass rendering.
     // We will draw a scene (containing just the left box with the striped
@@ -43,6 +43,10 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.materials =
             {
                 earth: new Material(new Fake_Bump_Map(1), {ambient: .5, texture: new Texture("src/assets/earth.gif")}),
+
+                wall_portal: new Material(new defs.Textured_Phong(), {ambient: .5, diffusivity: 1, specularity:0, texture: new Texture("src/assets/portal_wall.png")}),
+
+                wall_regular: new Material(new defs.Textured_Phong(), {ambient: .5, diffusivity: 1, specularity:0, texture: new Texture("src/assets/regular_wall.png")}),
 
                 phong: new Material(new Phong_Shader(), {ambient: .5}),
 
@@ -544,12 +548,12 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         // ALL FRAME UPDATES
 
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
-        const portal_lights = this.projectiles.map((projectile) => {
-            //use size = 15 for more normal light effect
-            const size = 100* Math.sin(6* t) + 10
-            return new Light(projectile.newPos.to4(true), projectile.color, 15)
-        })
-        program_state.lights = [new Light(vec4(-5, 5, 5, 1), color(1, 1, 1, 1), 100), ...portal_lights];
+        // const portal_lights = this.projectiles.map((projectile) => {
+        //     //use size = 15 for more normal light effect
+        //     const size = 100* Math.sin(6* t) + 10
+        //     return new Light(projectile.newPos.to4(true), projectile.color, 15)\
+        // })
+        program_state.lights = [new Light(vec4(-5, 5, 5, 1), color(1, 1, 1, 1), 100) /*, ...portal_lights*/];
 
         this.cube_1.post_multiply(Mat4.rotation(this.spin * dt * 30 / 60 * 2 * Math.PI, 1, 0, 0));
 
@@ -594,15 +598,15 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
     draw_walls(context, program_state) {
         for(let i = 0; i < this.wall_transforms.length; i++) {
-            this.shapes.square.draw(context, program_state, this.wall_transforms[i], this.materials.plastic)
+            this.shapes.square.draw(context, program_state, this.wall_transforms[i], this.materials.wall_portal)
         }
     }
 
     draw_ground(context, program_state) {
-        const materials = [this.materials.default.override({color: hex_color("#403837")}), this.materials.plastic]
+        // const materials = [this.materials.wall_regular, this.materials.plastic]
         for(let i = 0; i < this.ground_transforms.length; i++) {
             for(let j = 0; j < this.ground_transforms[i].length; j++) {
-                this.shapes.square.draw(context, program_state, this.ground_transforms[i][j], materials[i])
+                this.shapes.square.draw(context, program_state, this.ground_transforms[i][j], this.materials.wall_regular)
             }
         }
     }
