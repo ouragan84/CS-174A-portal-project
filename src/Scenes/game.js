@@ -56,7 +56,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
                 default: new Material(new defs.Phong_Shader(),
                     {ambient: 1, diffusivity: 0.1, specularity: 0.1, color: hex_color("#6da8e3")}),
-                projectile: new Material(new defs.Phong_Shader(), {ambient: .5, diffusivity: 0.1}) //probably change
+                projectile: new Material(new defs.Phong_Shader(), {ambient: 1, diffusivity: 0, specularity: 1.0}) //probably change
             }
 
         this.spin = 0;
@@ -137,7 +137,6 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.ground_transforms = this.do_ground_calc(Mat4.identity(), true)
 
         this.draw_secondary_portals = true;
-
     }
     
     generate_texture_attributes(width, height, color){
@@ -415,7 +414,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
         this.draw_visible_scene(context, program_state, t);
         this.draw_player(context, program_state);
-        this.draw_portal(context, program_state, this.portal_orange, this.textures.orange_portal_secondary.material, false);
+        this.draw_portal(context, program_state, this.portal_orange, this.textures.orange_portal_secondary.material, skip_secondary);
 
         this.update_texture(this.textures.orange_portal_primary, context);
 
@@ -521,16 +520,20 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                 if (!projectile_body.check_if_colliding(body, this.collider))
                     continue;
 
-                if(this.projectiles[i].type === "blue" && this.portal_orange.body !== body) {
+                if(this.projectiles[i].type == "blue" && this.portal_orange.body !== body) {
                     this.portal_blue.body = body;
-                    this.portal_blue.pos = body.center.plus(body.normal.times(0.05))
+                    this.portal_blue.pos = body.center.plus(body.normal.times(0.01))
+                    this.portal_blue.top = vec3(0,1,0);
                     this.portal_blue.normal = body.normal;
-                    this.compute_portal_transform(this.portal_blue)
-                } else if(this.projectiles[i].type === "orange" && this.portal_blue.body !== body) {
+                    this.compute_portal_transform(this.portal_blue, this.portal_orange);
+                    this.compute_portal_transform(this.portal_orange, this.portal_blue);
+                } else if(this.projectiles[i].type == "orange" && this.portal_blue.body !== body) {
                     this.portal_orange.body = body;
                     this.portal_orange.pos = body.center.plus(body.normal.times(0.01))
+                    this.portal_orange.top = vec3(0,1,0);
                     this.portal_orange.normal = body.normal;
-                    this.compute_portal_transform(this.portal_orange)
+                    this.compute_portal_transform(this.portal_blue, this.portal_orange);
+                    this.compute_portal_transform(this.portal_orange, this.portal_blue);
                 }
                 this.projectiles.splice(i, 1)
                 i--;
