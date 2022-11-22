@@ -1,5 +1,6 @@
 import {defs, tiny} from '../lib/common.js';
 import {Body} from "./examples/collisions-demo.js";
+import {Level} from "./level.js";
 // Pull these names into this module's scope for convenience:
 const {vec3, vec4, color, hex_color, Matrix, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
 const {Phong_Shader, Fake_Bump_Map, Tex} = defs;
@@ -45,9 +46,9 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             {
                 earth: new Material(new Fake_Bump_Map(1), {ambient: .5, texture: new Texture("src/assets/earth.gif")}),
 
-                wall_portal: new Material(new defs.Textured_Phong(), {ambient: .5, diffusivity: 1, specularity:0, texture: new Texture("src/assets/portal_wall.png")}),
+                wall_portal: new Material(new defs.Textured_Phong(), {ambient: .8, diffusivity: 0, specularity:0, texture: new Texture("src/assets/portal_wall.png")}),
 
-                wall_regular: new Material(new defs.Textured_Phong(), {ambient: .5, diffusivity: 1, specularity:0, texture: new Texture("src/assets/regular_wall.png")}),
+                wall_regular: new Material(new defs.Textured_Phong(), {ambient: .8, diffusivity: 0, specularity:0, texture: new Texture("src/assets/regular_wall.png")}),
 
                 phong: new Material(new Phong_Shader(), {ambient: .5}),
 
@@ -60,7 +61,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             }
 
         this.spin = 0;
-        this.cube_1 = Mat4.translation(0 , 1.5, 1);
+        this.cube_1 = Mat4.translation(14 , 1.1, 14);
 
         this.main_camera = {
             pos: vec3(5, 1, 5),
@@ -75,7 +76,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         }
 
         this.portal_blue = {
-            pos: vec3(5, 1, -2),
+            pos: vec3(5, 1, 0.1),
             scale: vec3(1, 1, .1),
             disp: vec3(0, 0, -.04),
             normal: vec3(0, 0, 1),
@@ -100,10 +101,10 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         }
 
         this.portal_orange = {
-            pos: vec3(-4, 1, 10),
+            pos: vec3(0.1, 1, 5),
             scale: vec3(1, 1, .1),
             disp: vec3(0, 0, -.049),
-            normal: vec3(.6, 0, -.8),
+            normal: vec3(1, 0, 0),
             top: vec3(0, 1, 0),
             color_behind: hex_color("#FF8000"),
             screen_transform: null,
@@ -132,11 +133,14 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.compute_portal_transform( this.portal_blue,  this.portal_orange);
         this.compute_portal_transform( this.portal_orange, this.portal_blue);
 
-        this.wall_bodies = []
-        this.wall_transforms = this.do_walls_calc(Mat4.identity())
-        this.ground_transforms = this.do_ground_calc(Mat4.identity(), true)
+        // this.wall_transforms = this.do_walls_calc(Mat4.identity())
+        // this.ground_transforms = this.do_ground_calc(Mat4.identity(), true)
 
         this.draw_secondary_portals = true;
+
+        // this.wall_bodies = level.get_wall_bodies(level.array);
+
+        this.level = new Level();
     }
     
     generate_texture_attributes(width, height, color){
@@ -260,19 +264,19 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     }
 
     draw_visible_scene(context, program_state, t){
-        this.draw_ground(context, program_state)
-        this.draw_walls(context, program_state)
+        // this.draw_ground(context, program_state)
+        // this.draw_walls(context, program_state)
         this.draw_projectiles(context, program_state)
 
         this.shapes.box.draw(context, program_state, this.cube_1, this.materials.earth);
 
         this.shapes.box.draw(context, program_state, Mat4.identity()
-                .times(Mat4.translation(3,1,1))
+                .times(Mat4.translation(7,1,1))
                 .times(Mat4.scale(.3,.3,.3)),
             this.materials.phong.override({color: hex_color("#FF80FF")}));
 
         this.shapes.box.draw(context, program_state, Mat4.identity()
-                .times(Mat4.translation(-1, this.get_cosine_interpolation(1, 4, 3, t, 0), 5))
+                .times(Mat4.translation(2, this.get_cosine_interpolation(1, 4, 3, t, 0), 12))
                 .times(Mat4.scale(.3,.5,.3)),
             this.materials.phong.override({color: hex_color("#00FF55")}));
 
@@ -285,6 +289,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                 .times(Mat4.translation(0,0,0))
                 .times(Mat4.scale(.2,.2,.2)),
             this.materials.phong.override({color: hex_color("#00FFFF")}));
+
+        this.level.draw_walls(context, program_state, this.materials.wall_portal, this.materials.wall_regular, this.shapes.square);
     }
 
     draw_portal(context, program_state, portal, material, draw_filled=false){
@@ -295,11 +301,16 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.shapes.box.draw(context, program_state,
             Mat4.translation(this.main_camera.pos[0], this.main_camera.pos[1], this.main_camera.pos[2])
                 .times(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0))
+                .times(Mat4.translation(0,-.5,0))
+                .times(Mat4.scale(.2, .5, .2)),
+            this.materials.phong.override({color: hex_color("#946afc")}));
+        this.shapes.box.draw(context, program_state,
+            Mat4.translation(this.main_camera.pos[0], this.main_camera.pos[1], this.main_camera.pos[2])
+                .times(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0))
                 .times(Mat4.rotation(this.main_camera.rot[1], 1, 0, 0))
-                .times(Mat4.translation(0, -.2, 0))
-                .times(Mat4.scale(.3, .8, .3)),
-            this.materials.phong.override({color: hex_color("#FFFFFF")}));
-    }
+                .times(Mat4.scale(.25, .25, .25)),
+            this.materials.phong.override({color: hex_color("#e3ac88")}));
+}
 
     update_main_camera(dt){
         this.main_camera.rot.add_by(this.main_camera.rot_dir.times(dt*this.main_camera.turning_speed));
@@ -522,14 +533,14 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
                 if(this.projectiles[i].type == "blue" && this.portal_orange.body !== body) {
                     this.portal_blue.body = body;
-                    this.portal_blue.pos = body.center.plus(body.normal.times(0.01))
+                    this.portal_blue.pos = body.center.plus(body.normal.times(0.1))
                     this.portal_blue.top = vec3(0,1,0);
                     this.portal_blue.normal = body.normal;
                     this.compute_portal_transform(this.portal_blue, this.portal_orange);
                     this.compute_portal_transform(this.portal_orange, this.portal_blue);
                 } else if(this.projectiles[i].type == "orange" && this.portal_blue.body !== body) {
                     this.portal_orange.body = body;
-                    this.portal_orange.pos = body.center.plus(body.normal.times(0.01))
+                    this.portal_orange.pos = body.center.plus(body.normal.times(0.1))
                     this.portal_orange.top = vec3(0,1,0);
                     this.portal_orange.normal = body.normal;
                     this.compute_portal_transform(this.portal_blue, this.portal_orange);
@@ -580,7 +591,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         //     const size = 100* Math.sin(6* t) + 10
         //     return new Light(projectile.newPos.to4(true), projectile.color, 15)\
         // })
-        program_state.lights = [new Light(vec4(-5, 5, 5, 0), color(1, 1, 1, 1), 100) /*, ...portal_lights*/];
+        program_state.lights = [new Light(vec4(5, 5, 5, 1), color(1, 1, 1, 1), 10000) /*, ...portal_lights*/];
 
         this.cube_1.post_multiply(Mat4.rotation(this.spin * dt * 30 / 60 * 2 * Math.PI, 1, 0, 0));
 
@@ -603,87 +614,88 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.draw_portal(context, program_state, this.portal_orange, this.textures.orange_portal_primary.material);
     }
 
-    do_ground_calc(model_transform, draw_ceiling = false) {
-        const k_max = draw_ceiling ? 2 : 1;
+    // do_ground_calc(model_transform, draw_ceiling = false) {
+    //     const k_max = draw_ceiling ? 2 : 1;
 
-        let ground_transforms = [[],[]]
-        for(let k = 0; k < k_max; k++) {
-            const y = (k == 0 ? 0 : 8)
+    //     let ground_transforms = [[],[]]
+    //     for(let k = 0; k < k_max; k++) {
+    //         const y = (k == 0 ? 0 : 8)
 
-            for(let i = -5; i < 5; i++) {
-                for(let j = -5; j < 5; j++) {
-                    let temp = model_transform
-                        .times(Mat4.translation(4*i, y, 4*j))
-                        .times(Mat4.scale(2, 1, 2))
-                        .times(Mat4.rotation(Math.PI/2, 1, 0, 0))
-                    ground_transforms[k].push(temp)
-                }
-            }
-        }
-        return ground_transforms
-    }
+    //         for(let i = -5; i < 5; i++) {
+    //             for(let j = -5; j < 5; j++) {
+    //                 let temp = model_transform
+    //                     .times(Mat4.translation(4*i, y, 4*j))
+    //                     .times(Mat4.scale(2, 1, 2))
+    //                     .times(Mat4.rotation(Math.PI/2, 1, 0, 0))
+    //                 ground_transforms[k].push(temp)
+    //             }
+    //         }
+    //     }
+    //     return ground_transforms
+    // }
 
-    draw_walls(context, program_state) {
-        for(let i = 0; i < this.wall_transforms.length; i++) {
-            this.shapes.square.draw(context, program_state, this.wall_transforms[i], this.materials.wall_portal)
-        }
-    }
+    // draw_walls(context, program_state) {
+    //     for(let i = 0; i < this.wall_transforms.length; i++) {
+    //         this.shapes.square.draw(context, program_state, this.wall_transforms[i], this.materials.wall_portal)
+    //     }
+    // }
 
-    draw_ground(context, program_state) {
-        // const materials = [this.materials.wall_regular, this.materials.plastic]
-        for(let i = 0; i < this.ground_transforms.length; i++) {
-            for(let j = 0; j < this.ground_transforms[i].length; j++) {
-                this.shapes.square.draw(context, program_state, this.ground_transforms[i][j], this.materials.wall_regular)
-            }
-        }
-    }
+    // draw_ground(context, program_state) {
+    //     // const materials = [this.materials.wall_regular, this.materials.plastic]
+    //     for(let i = 0; i < this.ground_transforms.length; i++) {
+    //         for(let j = 0; j < this.ground_transforms[i].length; j++) {
+    //             this.shapes.square.draw(context, program_state, this.ground_transforms[i][j], this.materials.wall_regular)
+    //         }
+    //     }
+    // }
 
-    do_walls_calc(model_transform, height = 4) {
-        const walls = {
-            // returns [transform, normal]
-            right: (i, j) => {
-                return [model_transform
-                    .times(Mat4.translation(18, j*2+1, i*2-1))
-                    .times(Mat4.scale(1, 1, 1))
-                    .times(Mat4.rotation(Math.PI/2, 0, 1, 0)), vec3(-1, 0, 0)]
-            },
-            left: (i, j) => {
-                return [model_transform
-                    .times(Mat4.translation(-22, j*2+1, i*2-1))
-                    .times(Mat4.scale(1, 1, 1))
-                    .times(Mat4.rotation(Math.PI/2, 0, 1, 0)), vec3(1, 0, 0)]
-            },
-            far: (i, j) => {
-                return [model_transform
-                    .times(Mat4.translation(i*2-1, j*2+1, -22))
-                    .times(Mat4.scale(1, 1, 1))
-                    .times(Mat4.rotation(Math.PI/2, 0, 0, 1)), vec3(0, 0, 1)]
-            },
-            near: (i, j) => {
-                return [model_transform
-                    .times(Mat4.translation(i*2-1, j*2+1, 18))
-                    .times(Mat4.scale(1, 1, 1))
-                    .times(Mat4.rotation(Math.PI/2, 0, 0, 1)), vec3(0, 0, -1)]
-            }
-        }
+    // do_walls_calc(model_transform, height = 4) {
+    //     const walls = {
+    //         // returns [transform, normal]
+    //         right: (i, j) => {
+    //             return [model_transform
+    //                 .times(Mat4.translation(18, j*2+1, i*2-1))
+    //                 .times(Mat4.scale(1, 1, 1))
+    //                 .times(Mat4.rotation(Math.PI/2, 0, 1, 0)), vec3(-1, 0, 0)]
+    //         },
+    //         left: (i, j) => {
+    //             return [model_transform
+    //                 .times(Mat4.translation(-22, j*2+1, i*2-1))
+    //                 .times(Mat4.scale(1, 1, 1))
+    //                 .times(Mat4.rotation(Math.PI/2, 0, 1, 0)), vec3(1, 0, 0)]
+    //         },
+    //         far: (i, j) => {
+    //             return [model_transform
+    //                 .times(Mat4.translation(i*2-1, j*2+1, -22))
+    //                 .times(Mat4.scale(1, 1, 1))
+    //                 .times(Mat4.rotation(Math.PI/2, 0, 0, 1)), vec3(0, 0, 1)]
+    //         },
+    //         near: (i, j) => {
+    //             return [model_transform
+    //                 .times(Mat4.translation(i*2-1, j*2+1, 18))
+    //                 .times(Mat4.scale(1, 1, 1))
+    //                 .times(Mat4.rotation(Math.PI/2, 0, 0, 1)), vec3(0, 0, -1)]
+    //         }
+    //     }
 
-        let wall_transforms = []
-        for(const [_, transform] of Object.entries(walls)) {
-            for(let i = -10; i < 10; i++) {
-                for(let j = 0; j < height; j++) {
-                    const [temp_transform, normal] = transform(i, j)
-                    const temp_body = new Body(this.shapes.square, this.materials.plastic, vec3(1, 1, 1))
-                    temp_body.emplace(temp_transform, vec3(0,0,0), 0, vec3(0,0,0))
-                    temp_body.inverse = Mat4.inverse(temp_body.drawn_location)
-                    temp_body.normal = normal;
+    //     let wall_transforms = []
+    //     for(const [_, transform] of Object.entries(walls)) {
+    //         for(let i = -10; i < 10; i++) {
+    //             for(let j = 0; j < height; j++) {
+    //                 const [temp_transform, normal] = transform(i, j)
+    //                 const temp_body = new Body(this.shapes.square, this.materials.plastic, vec3(1, 1, 1))
+    //                 temp_body.emplace(temp_transform, vec3(0,0,0), 0, vec3(0,0,0))
+    //                 temp_body.inverse = Mat4.inverse(temp_body.drawn_location)
+    //                 temp_body.normal = normal;
 
-                    wall_transforms.push(temp_transform)
-                    this.wall_bodies.push(temp_body)
-                }
-            }
-        }
-        return wall_transforms;
-    }
+    //                 wall_transforms.push(temp_transform)
+    //                 this.wall_bodies.push(temp_body)
+    //             }
+    //         }
+    //     }
+    //     return wall_transforms;
+    // }
+
 }
 
 
