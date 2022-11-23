@@ -513,13 +513,14 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     update_projectiles(dt) {
         const origin = Mat4.identity();
         const projectile_scale = 0.1;
-        const speed = 3.0;
+        const speed = 10.0;
+        const life_span = 3.0;
         // const projectile_scale = 0.025 * Math.sin(6 * dt) + 0.14;
         for(let i = 0; i < this.projectiles.length; ++i) {
 
             let age = (this.t - this.projectiles[i].time);
  
-            if(age > 5.0) {
+            if(age > life_span) {
                 console.log("projectile cancled = ", this.projectiles[i]);
                 this.projectiles.splice(i, 1)
                 i--;

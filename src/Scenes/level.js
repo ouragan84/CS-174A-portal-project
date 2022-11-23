@@ -272,7 +272,7 @@ export class Level{
     check_collision_bound(p, v, o, n, x_min, x_max, y_min, y_max, z_min, z_max, err){
         
 
-        console.log("  - getting intersection between p="+p.to_string()+", v="+v.to_string()+", o="+o.to_string()+", n="+n.to_string());
+        console.log("  - getting intersection between \np="+p.to_string()+", v="+v.to_string()+"\n, o="+o.to_string()+", n="+n.to_string());
         let int = this.get_point_plane_intersect(p, v, o, n);
 
         if(int == null) return null;
@@ -283,7 +283,7 @@ export class Level{
         if( int[1] < y_min-err || int[1] > y_max+err ) return null;
         if( int[2] < z_min-err || int[2] > z_max+err ) return null;
 
-        console.log("     - intersection within square! ");
+        console.log("     - intersection is within square!" );
 
         return int;
     }
@@ -291,25 +291,27 @@ export class Level{
     // point vector plane_origin normal
     get_point_plane_intersect(p, v, o, n){
 
-        if(v.dot(n) < 0.0001)
+        if(Math.abs(v.dot(n)) < 0.0001)
             return null; // no intersection
 
-        // console.log("      - vector does cross plane");
+        console.log("      - vector does cross plane");
 
         const d = o.dot(n);
 
-        const i = v[0]>v[1]?(v[0]>v[2]?0:2):(v[1]>v[2]?1:2);
+        const a = vec3(Math.abs(n[0]), Math.abs(n[1]), Math.abs(n[2]));
+
+        const i = a[0]>a[1]?(a[0]>a[2]?0:2):(a[1]>a[2]?1:2);
 
         const t = (d/n[i] - p[i])/v[i];
 
-        // console.log("      - d = " + d + ", t = " + t);
+        console.log("      - d = " + d + ", t = " + t + ", i = " + i );
 
         if(t>1 || t<0) 
             return null; // vector too far
 
         const inter = p.plus(v.times(t));
 
-        // console.log("      - inter = " + inter.to_string());
+        console.log("      - inter = " + inter.to_string());
 
         return inter;
     }
