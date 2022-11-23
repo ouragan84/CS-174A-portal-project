@@ -66,17 +66,28 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.main_camera = {
             pos: vec3(5, 1, 5),
             top: vec3(0, 1, 0),
-            height: 1.0,
-            width: 0.2,
+            rot: vec3(0, 0, 0),
             look_dir: null,
             transform: null,
-            rot: vec3(0, 0, 0),
-            pos_dir: vec3(0, 0, 0),
-            rot_dir: vec3(0, 0, 0),
-            is_grounded: false,
-            speed: 3.0,
-            turning_speed: 0.8 * Math.PI
+            
+            pos_input: vec3(0,0,0),
+            rot_input: vec3(0,0,0),
+            velocity: vec3(0,0,0),
+            walking_speed: 4.0,
+            turning_speed: 0.8 * Math.PI,
+
+
+            height_on_bottom: 1.0,
+            height_on_top: 0.3,
+            side_width: 0.2,
+            collision_center: null,
+            widths: null,
+            total_height: null
         }
+
+        this.main_camera.total_height = this.main_camera.height_on_bottom+this.main_camera.height_on_top;
+        this.main_camera.collision_center = vec3(0,(this.main_camera.height_on_top-this.main_camera.height_on_bottom)/2,0);
+        this.main_camera.widths = vec3(this.main_camera.side_width, this.main_camera.total_height/2, this.main_camera.side_width);
 
         this.portal_blue = {
             pos: vec3(5, 1, 0.1),
@@ -191,7 +202,10 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.key_triggered_button("Left Click (blue)", ["["], () => this.shoot_projectile("blue"))
         this.key_triggered_button("Right Click (orange)", ["]"], () => this.shoot_projectile("orange"))
 
+        this.new_line();
+
         this.key_triggered_button("Jump", [" "], () => this.jump());
+        this.new_line();
         this.key_triggered_button("Forward", ["w"], () => this.move_player(2,-1), undefined, () => this.move_player(2,0));
         this.key_triggered_button("Back", ["s"], () => this.move_player(2,1), undefined, () => this.move_player(2,0));
         this.new_line();
@@ -207,6 +221,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.key_triggered_button("Look Up", ["r"], () => this.rotate_player(1,1), undefined, () => this.rotate_player(1,0));
         this.key_triggered_button("Look Down", ["f"], () => this.rotate_player(1,-1), undefined, () => this.rotate_player(1,0));
 
+        this.new_line();
         this.new_line();
 
         this.key_triggered_button("Draw Secondary Portals", ["p"], () => this.draw_secondary_portals ^= true);
@@ -319,94 +334,182 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         //limit to single jump
         if(!this.main_camera.is_grounded) return;
 
-        this.main_camera.pos_dir[1] = 5;
+        this.main_camera.velocity[1] = 5;
         // this.main_camera.pos.add_by(vec3(0, 0.00001, 0))
     }
 
     move_player(coord, amount){
-        this.main_camera.pos_dir[coord] = amount * this.main_camera.speed;
+        this.main_camera.pos_input[coord] = amount;
     }
 
     rotate_player(coord, amount){
-        this.main_camera.rot_dir[coord] = amount * this.main_camera.turning_speed;
+        this.main_camera.rot_input[coord] = amount;
     }
 
-    get_player_side_collision(dir, center, widths, err_out, err_in){
-        let collide, points = [];
+    get_player_side_collision(dir, center, widths, err_out = 0.01, err_in = 0.39, shrink_err=0.01){
+        let points = [];
 
         if(Math.abs(dir[0]) > .999){
-            points.push(center.plus(vec3(0,widths[1],widths[2])));
-            points.push(center.plus(vec3(0,-widths[1],widths[2])));
-            points.push(center.plus(vec3(0,widths[1],-widths[2])));
-            points.push(center.plus(vec3(0,-widths[1],-widths[2])));
+            points.push(center.plus(vec3(0,widths[1]-shrink_err,widths[2]-shrink_err)));
+            points.push(center.plus(vec3(0,-widths[1]+shrink_err,widths[2]-shrink_err)));
+            points.push(center.plus(vec3(0,widths[1]-shrink_err,-widths[2]+shrink_err)));
+            points.push(center.plus(vec3(0,-widths[1]+shrink_err,-widths[2]+shrink_err)));
         }
 
         if(Math.abs(dir[1]) > .999){
-            points.push(center.plus(vec3(widths[0],0,widths[2])));
-            points.push(center.plus(vec3(-widths[0],0,widths[2])));
-            points.push(center.plus(vec3(widths[0],0,-widths[2])));
-            points.push(center.plus(vec3(-widths[0],0,-widths[2])));
+            points.push(center.plus(vec3(widths[0]-shrink_err,0,widths[2]-shrink_err)));
+            points.push(center.plus(vec3(-widths[0]+shrink_err,0,widths[2]-shrink_err)));
+            points.push(center.plus(vec3(widths[0]-shrink_err,0,-widths[2]+shrink_err)));
+            points.push(center.plus(vec3(-widths[0]+shrink_err,0,-widths[2]+shrink_err)));
         }
 
         if(Math.abs(dir[2]) > .999){
-            points.push(center.plus(vec3(widths[0],widths[1],0)));
-            points.push(center.plus(vec3(-widths[0],widths[1],0)));
-            points.push(center.plus(vec3(widths[0],-widths[1],0)));
-            points.push(center.plus(vec3(-widths[0],-widths[1],0)));
+            points.push(center.plus(vec3(widths[0]-shrink_err,widths[1]-shrink_err,0)));
+            points.push(center.plus(vec3(-widths[0]+shrink_err,widths[1]-shrink_err,0)));
+            points.push(center.plus(vec3(widths[0]-shrink_err,-widths[1]+shrink_err,0)));
+            points.push(center.plus(vec3(-widths[0]+shrink_err,-widths[1]+shrink_err,0)));
         }
-
+        
         for(let point of points){
-            collide = this.level.collision_point_to_point(point.minus(dir.times(err_in)), point.plus(dir.times(err_out)));
-            if(collide != null)
+            const collide = this.level.collision_point_to_point(point.minus(dir.times(err_in)), point.plus(dir.times(err_out)));
+            if(collide != null){
                 return collide;
+            }
+                
         }
 
         return null;
         
     }
 
-    update_main_camera(dt){
+    update_player_rotation(dt){
+        this.main_camera.rot.add_by(this.main_camera.rot_input.times(dt * this.main_camera.turning_speed));
+        this.main_camera.rot[0] = this.main_camera.rot[0]%(2.0*Math.PI); 
+        this.main_camera.rot[1] = (this.main_camera.rot[1] < -Math.PI/2 + 0.01)? -Math.PI/2 + 0.01 : 
+                            (this.main_camera.rot[1] > Math.PI/2 - 0.01)? Math.PI/2 - 0.01 : this.main_camera.rot[1];
+    }
+
+    update_player_position(dt){
+        this.main_camera.pos.add_by(this.main_camera.velocity.times(dt));
+    }
+
+    update_player_vertical_veolcity(dt){
 
         const gravity_factor = 9.8;
         const max_fall_speed = 3;
 
-        
+        const col_cent = this.main_camera.pos.plus(this.main_camera.collision_center);
 
-        let half_body_height = this.main_camera.height/2 + 0.2; // change
-        let center; let widths = vec3(this.main_camera.width, half_body_height, this.main_camera.width);
+        // console.log("col_cent ", col_cent)
 
-        // check collision with floor
-        center = this.main_camera.pos.minus(vec3(0,this.main_camera.height,0))
-        const floor_collide = this.get_player_side_collision(vec3(0,-1,0), center, widths, 0.01, 0.5);
-
+        const floor_collide = this.get_player_side_collision(vec3(0,-1,0), 
+            col_cent.plus(vec3(0,-this.main_camera.widths[1],0)), this.main_camera.widths);
         this.main_camera.is_grounded = floor_collide != null;
 
-        // gravity shit (sometimes not reliable if laggy)
+        const ceil_collide = this.get_player_side_collision(vec3(0,1,0), 
+        col_cent.plus(vec3(0,this.main_camera.widths[1],0)), this.main_camera.widths);
+        const is_ceiled = ceil_collide != null;
 
-        if(this.main_camera.is_grounded && this.main_camera.pos_dir[1] <= 0){
-            this.main_camera.pos[1] = floor_collide.pos[1] + this.main_camera.height;
-            this.main_camera.pos_dir[1] = 0;
+        if(this.main_camera.is_grounded && this.main_camera.velocity[1] <= 0){
+            // were already on the floor or landed on the floor
+            this.main_camera.pos[1] = floor_collide.pos[1] + this.main_camera.height_on_bottom;
+            this.main_camera.velocity[1] = 0;
+        }else if(is_ceiled && this.main_camera.velocity[1] > 0){
+            // landed on the ceiling
+            this.main_camera.pos[1] = ceil_collide.pos[1] - this.main_camera.height_on_top;
+            this.main_camera.velocity[1] = 0;
         }else{
-            this.main_camera.pos_dir[1] -= dt * gravity_factor;
+            // otherwise go down
+            this.main_camera.velocity[1] -= dt * gravity_factor;
 
-            if(this.main_camera.pos_dir[1] < 0){
-                this.main_camera.pos_dir[1] = Math.min(this.main_camera.pos_dir[1], max_fall_speed)
+            if(this.main_camera.velocity[1] < 0){
+                // cap falling velocity
+                this.main_camera.velocity[1] = Math.min(this.main_camera.velocity[1], max_fall_speed)
             }
-            
         }
 
-        // rotation
+    }
 
-        this.main_camera.rot.add_by(this.main_camera.rot_dir.times(dt));
-        this.main_camera.rot[0] = this.main_camera.rot[0]%(2.0*Math.PI); 
-        this.main_camera.rot[1] = (this.main_camera.rot[1] < -Math.PI/2 + 0.01)? -Math.PI/2 + 0.01 : 
-                            (this.main_camera.rot[1] > Math.PI/2 - 0.01)? Math.PI/2 - 0.01 : this.main_camera.rot[1];
+    update_player_velocity(dt){
+        this.update_player_vertical_veolcity(dt);
+
+        if(this.main_camera.is_grounded){
+            this.main_camera.velocity[0] = ( Math.cos(this.main_camera.rot[0]) * this.main_camera.pos_input[0]
+                + Math.sin(this.main_camera.rot[0]) * this.main_camera.pos_input[2]) * this.main_camera.walking_speed;
+
+            this.main_camera.velocity[2] = ( Math.cos(this.main_camera.rot[0]) * this.main_camera.pos_input[2]
+                - Math.sin(this.main_camera.rot[0]) * this.main_camera.pos_input[0]) * this.main_camera.walking_speed;
+        }
+        
+        // this.main_camera.pos.add_by(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0)
+        //     .times(this.main_camera.pos_dir.times(dt)));
+    }
+
+    handle_player_collision(){
+
+        let col_cent = this.main_camera.pos.plus(this.main_camera.collision_center);
+        
+        if(this.main_camera.velocity[0] > 0){
+
+            const positive_x_collide = this.get_player_side_collision(vec3(1,0,0), 
+            col_cent.plus(vec3(this.main_camera.widths[0],0,0)), this.main_camera.widths);
+
+            if(positive_x_collide != null && Math.sign(positive_x_collide.normal[0]) < 0){
+                // collision with wall
+                this.main_camera.pos[0] = positive_x_collide.pos[0] - this.main_camera.side_width;
+                this.main_camera.velocity[0] = 0;
+                col_cent = this.main_camera.pos.plus(this.main_camera.collision_center);//update for z
+            }
+        }else if(this.main_camera.velocity[0] < 0){
+
+            const negative_x_collide = this.get_player_side_collision(vec3(-1,0,0), 
+                col_cent.plus(vec3(-this.main_camera.widths[0],0,0)), this.main_camera.widths);
+
+            if(negative_x_collide != null && Math.sign(negative_x_collide.normal[0]) > 0){
+                // collision with wall
+                this.main_camera.pos[0] = negative_x_collide.pos[0] + this.main_camera.side_width;
+                this.main_camera.velocity[0] = 0;
+                col_cent = this.main_camera.pos.plus(this.main_camera.collision_center); //update for z
+            }
+        }
+
+        
+        if(this.main_camera.velocity[2] > 0){
+            
+            const positive_z_collide = this.get_player_side_collision(vec3(0,0,1), 
+                col_cent.plus(vec3(0,0,this.main_camera.widths[2])), this.main_camera.widths);
+
+            if(positive_z_collide != null && Math.sign(positive_z_collide.normal[2]) < 0){
+                // collision with wall
+                this.main_camera.pos[2] = positive_z_collide.pos[2] - this.main_camera.side_width;
+                this.main_camera.velocity[2] = 0;
+            }
+        }else if(this.main_camera.velocity[2] < 0){
+
+            const negative_z_collide = this.get_player_side_collision(vec3(0,0,-1), 
+                col_cent.plus(vec3(0,0,-this.main_camera.widths[2])), this.main_camera.widths);
+
+            if(negative_z_collide != null && Math.sign(negative_z_collide.normal[2]) > 0){
+                // collision with wall
+                this.main_camera.pos[2] = negative_z_collide.pos[2] + this.main_camera.side_width;
+                this.main_camera.velocity[2] = 0;
+            }
+        }
+
+    }
+
+    update_main_camera(dt){
+
+        this.update_player_rotation(dt);
+
+        this.update_player_velocity(dt);
+
+        this.update_player_position(dt);
+
+        this.handle_player_collision();
 
 
-        // position
-
-        this.main_camera.pos.add_by(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0)
-            .times(this.main_camera.pos_dir.times(dt)));
+        // get camera attributes
 
         this.main_camera.look_dir = Mat4.identity()
             .times(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0))
@@ -414,21 +517,10 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             .times(Mat4.translation(0, 0, -1))
             .times(vec4(0,0,0,1)).to3();
 
-        // collision with walls
-
-
-
-
-        // add teleport
-
-
-        // get camera attributes
-
         const look_at_point = this.main_camera.look_dir.plus(this.main_camera.pos);
+
+        // console.log(this.main_camera.pos.to_string(), this.main_camera.velocity.to_string())
         this.main_camera.transform = Mat4.look_at(this.main_camera.pos, look_at_point, this.main_camera.top);
-
-
-        
     }
 
     update_portal_camera(portal, other, camera, iteration=1){
@@ -745,88 +837,6 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.draw_portal(context, program_state, this.portal_blue, this.textures.blue_portal_primary.material);
         this.draw_portal(context, program_state, this.portal_orange, this.textures.orange_portal_primary.material);
     }
-
-    // do_ground_calc(model_transform, draw_ceiling = false) {
-    //     const k_max = draw_ceiling ? 2 : 1;
-
-    //     let ground_transforms = [[],[]]
-    //     for(let k = 0; k < k_max; k++) {
-    //         const y = (k == 0 ? 0 : 8)
-
-    //         for(let i = -5; i < 5; i++) {
-    //             for(let j = -5; j < 5; j++) {
-    //                 let temp = model_transform
-    //                     .times(Mat4.translation(4*i, y, 4*j))
-    //                     .times(Mat4.scale(2, 1, 2))
-    //                     .times(Mat4.rotation(Math.PI/2, 1, 0, 0))
-    //                 ground_transforms[k].push(temp)
-    //             }
-    //         }
-    //     }
-    //     return ground_transforms
-    // }
-
-    // draw_walls(context, program_state) {
-    //     for(let i = 0; i < this.wall_transforms.length; i++) {
-    //         this.shapes.square.draw(context, program_state, this.wall_transforms[i], this.materials.wall_portal)
-    //     }
-    // }
-
-    // draw_ground(context, program_state) {
-    //     // const materials = [this.materials.wall_regular, this.materials.plastic]
-    //     for(let i = 0; i < this.ground_transforms.length; i++) {
-    //         for(let j = 0; j < this.ground_transforms[i].length; j++) {
-    //             this.shapes.square.draw(context, program_state, this.ground_transforms[i][j], this.materials.wall_regular)
-    //         }
-    //     }
-    // }
-
-    // do_walls_calc(model_transform, height = 4) {
-    //     const walls = {
-    //         // returns [transform, normal]
-    //         right: (i, j) => {
-    //             return [model_transform
-    //                 .times(Mat4.translation(18, j*2+1, i*2-1))
-    //                 .times(Mat4.scale(1, 1, 1))
-    //                 .times(Mat4.rotation(Math.PI/2, 0, 1, 0)), vec3(-1, 0, 0)]
-    //         },
-    //         left: (i, j) => {
-    //             return [model_transform
-    //                 .times(Mat4.translation(-22, j*2+1, i*2-1))
-    //                 .times(Mat4.scale(1, 1, 1))
-    //                 .times(Mat4.rotation(Math.PI/2, 0, 1, 0)), vec3(1, 0, 0)]
-    //         },
-    //         far: (i, j) => {
-    //             return [model_transform
-    //                 .times(Mat4.translation(i*2-1, j*2+1, -22))
-    //                 .times(Mat4.scale(1, 1, 1))
-    //                 .times(Mat4.rotation(Math.PI/2, 0, 0, 1)), vec3(0, 0, 1)]
-    //         },
-    //         near: (i, j) => {
-    //             return [model_transform
-    //                 .times(Mat4.translation(i*2-1, j*2+1, 18))
-    //                 .times(Mat4.scale(1, 1, 1))
-    //                 .times(Mat4.rotation(Math.PI/2, 0, 0, 1)), vec3(0, 0, -1)]
-    //         }
-    //     }
-
-    //     let wall_transforms = []
-    //     for(const [_, transform] of Object.entries(walls)) {
-    //         for(let i = -10; i < 10; i++) {
-    //             for(let j = 0; j < height; j++) {
-    //                 const [temp_transform, normal] = transform(i, j)
-    //                 const temp_body = new Body(this.shapes.square, this.materials.plastic, vec3(1, 1, 1))
-    //                 temp_body.emplace(temp_transform, vec3(0,0,0), 0, vec3(0,0,0))
-    //                 temp_body.inverse = Mat4.inverse(temp_body.drawn_location)
-    //                 temp_body.normal = normal;
-
-    //                 wall_transforms.push(temp_transform)
-    //                 this.wall_bodies.push(temp_body)
-    //             }
-    //         }
-    //     }
-    //     return wall_transforms;
-    // }
 
 }
 

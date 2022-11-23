@@ -248,28 +248,28 @@ export class Level{
 
         let int;
 
-        int = this.check_collision_bound(p, v, vec3(1,0,0), vec3(1,0,0), 1, 1, -1, 1, -1, 1, err);
+        int = this.check_collision_bound(p, v, vec3(1,0,0), vec3(1,0,0), 1-err, 1+err, -1, 1, -1, 1);
         if(int != null) return {face:1, intersection: int.plus(offset)};
 
-        int = this.check_collision_bound(p, v, vec3(-1,0,0), vec3(-1,0,0), -1, -1, -1, 1, -1, 1, err);
+        int = this.check_collision_bound(p, v, vec3(-1,0,0), vec3(-1,0,0), -1-err, -1+err, -1, 1, -1, 1);
         if(int != null) return {face:2, intersection: int.plus(offset)};
 
-        int = this.check_collision_bound(p, v, vec3(0,1,0), vec3(0,1,0), -1, 1, 1, 1, -1, 1, err);
+        int = this.check_collision_bound(p, v, vec3(0,1,0), vec3(0,1,0), -1, 1, 1-err, 1+err, -1, 1);
         if(int != null) return {face:3, intersection: int.plus(offset)};
 
-        int = this.check_collision_bound(p, v, vec3(0,-1,0), vec3(0,-1,0), -1, 1, -1, -1, -1, 1, err);
+        int = this.check_collision_bound(p, v, vec3(0,-1,0), vec3(0,-1,0), -1, 1, -1, -1, -1-err, 1+err);
         if(int != null) return {face:4, intersection: int.plus(offset)};
 
-        int = this.check_collision_bound(p, v, vec3(0,0,1), vec3(0,0,1), -1, 1, -1, 1, 1, 1, err);
+        int = this.check_collision_bound(p, v, vec3(0,0,1), vec3(0,0,1), -1, 1, -1, 1, 1-err, 1+err);
         if(int != null) return {face:5, intersection: int.plus(offset)};
 
-        int = this.check_collision_bound(p, v, vec3(0,0,-1), vec3(0,0,-1), -1, 1, -1, 1, -1, -1, err);
+        int = this.check_collision_bound(p, v, vec3(0,0,-1), vec3(0,0,-1), -1, 1, -1, 1, -1-err, -1+err);
         if(int != null) return {face:6, intersection: int.plus(offset)};
 
         return null;
     }
 
-    check_collision_bound(p, v, o, n, x_min, x_max, y_min, y_max, z_min, z_max, err){
+    check_collision_bound(p, v, o, n, x_min, x_max, y_min, y_max, z_min, z_max){
         
 
         // console.log("  - getting intersection between \np="+p.to_string()+", v="+v.to_string()+"\n, o="+o.to_string()+", n="+n.to_string());
@@ -279,9 +279,9 @@ export class Level{
 
         // console.log("     - intersection not null = " + int.to_string());
 
-        if( int[0] < x_min-err || int[0] > x_max+err ) return null;
-        if( int[1] < y_min-err || int[1] > y_max+err ) return null;
-        if( int[2] < z_min-err || int[2] > z_max+err ) return null;
+        if( int[0] < x_min || int[0] > x_max ) return null;
+        if( int[1] < y_min || int[1] > y_max ) return null;
+        if( int[2] < z_min || int[2] > z_max ) return null;
 
         // console.log("     - intersection is within square!" );
 
