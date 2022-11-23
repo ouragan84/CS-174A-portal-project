@@ -60,8 +60,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                 projectile: new Material(new defs.Phong_Shader(), {ambient: 1, diffusivity: 0, specularity: 1.0}) //probably change
             }
 
-        this.spin = 0;
-        this.cube_1 = Mat4.translation(14 , 1.1, 14);
+        // this.spin = 0;
+        // this.cube_1 = Mat4.translation(14 , 1.1, 14);
 
         this.main_camera = {
             pos: vec3(5, 1, 5),
@@ -126,8 +126,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         }
 
         this.velocity_y = 0;
-        this.last_fired = Date.now();
-        this.projectiles = []
+        
+        this.projectiles = [];
         this.collider = {intersect_test: Body.intersect_cube, points: new defs.Subdivision_Sphere(4), leeway: .3}
 
         this.compute_portal_transform( this.portal_blue,  this.portal_orange);
@@ -141,6 +141,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         // this.wall_bodies = level.get_wall_bodies(level.array);
 
         this.level = new Level();
+        this.t = 0;
+        this.last_fired = 0;
     }
     
     generate_texture_attributes(width, height, color){
@@ -268,27 +270,27 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         // this.draw_walls(context, program_state)
         this.draw_projectiles(context, program_state)
 
-        this.shapes.box.draw(context, program_state, this.cube_1, this.materials.earth);
+        // this.shapes.box.draw(context, program_state, this.cube_1, this.materials.earth);
 
-        this.shapes.box.draw(context, program_state, Mat4.identity()
-                .times(Mat4.translation(7,1,1))
-                .times(Mat4.scale(.3,.3,.3)),
-            this.materials.phong.override({color: hex_color("#FF80FF")}));
+        // this.shapes.box.draw(context, program_state, Mat4.identity()
+        //         .times(Mat4.translation(7,1,1))
+        //         .times(Mat4.scale(.3,.3,.3)),
+        //     this.materials.phong.override({color: hex_color("#FF80FF")}));
 
-        this.shapes.box.draw(context, program_state, Mat4.identity()
-                .times(Mat4.translation(2, this.get_cosine_interpolation(1, 4, 3, t, 0), 12))
-                .times(Mat4.scale(.3,.5,.3)),
-            this.materials.phong.override({color: hex_color("#00FF55")}));
+        // this.shapes.box.draw(context, program_state, Mat4.identity()
+        //         .times(Mat4.translation(2, this.get_cosine_interpolation(1, 4, 3, t, 0), 12))
+        //         .times(Mat4.scale(.3,.5,.3)),
+        //     this.materials.phong.override({color: hex_color("#00FF55")}));
 
-        this.shapes.box.draw(context, program_state, Mat4.identity()
-                .times(Mat4.translation(2, .5, 8))
-                .times(Mat4.scale(.5,.5,this.get_cosine_interpolation(1, .2, 1.2, t, 0))),
-            this.materials.phong.override({color: hex_color("#f76d28")}));
+        // this.shapes.box.draw(context, program_state, Mat4.identity()
+        //         .times(Mat4.translation(2, .5, 8))
+        //         .times(Mat4.scale(.5,.5,this.get_cosine_interpolation(1, .2, 1.2, t, 0))),
+        //     this.materials.phong.override({color: hex_color("#f76d28")}));
 
-        this.shapes.box.draw(context, program_state, Mat4.identity()
-                .times(Mat4.translation(0,0,0))
-                .times(Mat4.scale(.2,.2,.2)),
-            this.materials.phong.override({color: hex_color("#00FFFF")}));
+        // this.shapes.box.draw(context, program_state, Mat4.identity()
+        //         .times(Mat4.translation(0,0,0))
+        //         .times(Mat4.scale(.2,.2,.2)),
+        //     this.materials.phong.override({color: hex_color("#00FFFF")}));
 
         this.level.draw_walls(context, program_state, this.materials.wall_portal, this.materials.wall_regular, this.shapes.square);
     }
@@ -304,13 +306,15 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                 .times(Mat4.translation(0,-.5,0))
                 .times(Mat4.scale(.2, .5, .2)),
             this.materials.phong.override({color: hex_color("#946afc")}));
+
         this.shapes.box.draw(context, program_state,
             Mat4.translation(this.main_camera.pos[0], this.main_camera.pos[1], this.main_camera.pos[2])
                 .times(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0))
                 .times(Mat4.rotation(this.main_camera.rot[1], 1, 0, 0))
+                .times(Mat4.translation(0,.1,-.05))
                 .times(Mat4.scale(.25, .25, .25)),
             this.materials.phong.override({color: hex_color("#e3ac88")}));
-}
+    }
 
     update_main_camera(dt){
         this.main_camera.rot.add_by(this.main_camera.rot_dir.times(dt*this.main_camera.turning_speed));
@@ -488,74 +492,128 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
     shoot_projectile(type) {
         //limit shooting to every _ seconds
-        if(Date.now() - this.last_fired < 1000) return;
-        this.last_fired = Date.now();
+        if(this.t - this.last_fired < 1.0) return;
+        this.last_fired = this.t;
 
-        const color = type === "orange" ? hex_color("FFA500") : hex_color("0059FF");
+        const color = (type == "orange") ? hex_color("FFA500") : hex_color("0059FF");
+
         this.projectiles.push({
-            type,
-            color,
-            start: this.main_camera.pos.copy(),
+            type: type,
+            color: color,
+            oldPos: this.main_camera.pos.copy(),
             newPos: this.main_camera.pos.copy(),
-            time: Date.now(),
+            time: this.t,
             dir: this.main_camera.look_dir.copy(),
-            transform: null
-        })
+            transform: null,
+        });
+
+        console.log("shoot ", this.projectiles);
     }
 
     update_projectiles(dt) {
         const origin = Mat4.identity();
-        const projectile_scale = 0.1
+        const projectile_scale = 0.1;
+        const speed = 3.0;
         // const projectile_scale = 0.025 * Math.sin(6 * dt) + 0.14;
         for(let i = 0; i < this.projectiles.length; ++i) {
-            let time_diff = (Date.now() - this.projectiles[i].time)/100
-            this.projectiles[i].newPos = this.projectiles[i].start.plus(this.projectiles[i].dir.times(time_diff))
-            this.projectiles[i].transform = origin
-                .times(Mat4.translation(this.projectiles[i].newPos[0], this.projectiles[i].newPos[1], this.projectiles[i].newPos[2]))
-                .times(Mat4.scale(projectile_scale, projectile_scale, projectile_scale))
 
-            //projectiles disappear after 10 seconds
-            if(time_diff > 100) {
+            let age = (this.t - this.projectiles[i].time);
+ 
+            if(age > 5.0) {
+                console.log("projectile cancled = ", this.projectiles[i]);
                 this.projectiles.splice(i, 1)
                 i--;
                 continue;
             }
 
-            let projectile_body = new Body(this.shapes.sphere, this.materials.projectile,
-                vec3(projectile_scale, projectile_scale, projectile_scale))
-            projectile_body.emplace(this.projectiles[i].transform, vec3(0,0,0), 0, vec3(0,0,0))
-            projectile_body.inverse = Mat4.inverse(this.projectiles[i].transform)
+            this.projectiles[i].oldPos = this.projectiles[i].newPos;
 
-            for (let body of this.wall_bodies) {
-                // Pass the two bodies and the collision shape to check_if_colliding():
-                if (!projectile_body.check_if_colliding(body, this.collider))
+            this.projectiles[i].newPos = this.projectiles[i].oldPos.plus(this.projectiles[i].dir.times(dt * speed));
+
+            this.projectiles[i].transform = origin
+                .times(Mat4.translation(this.projectiles[i].newPos[0], this.projectiles[i].newPos[1], this.projectiles[i].newPos[2]))
+                .times(Mat4.scale(projectile_scale, projectile_scale, projectile_scale))
+
+            //projectiles disappear after 10 seconds
+            
+            // let projectile_body = new Body(this.shapes.sphere, this.materials.projectile,
+            //     vec3(projectile_scale, projectile_scale, projectile_scale))
+            // projectile_body.emplace(this.projectiles[i].transform, vec3(0,0,0), 0, vec3(0,0,0))
+            // projectile_body.inverse = Mat4.inverse(this.projectiles[i].transform)
+
+            let collision_wall = this.level.collision_point_to_point( this.projectiles[i].oldPos, this.projectiles[i].newPos);
+
+            if(collision_wall != null){
+
+                console.log("projectile collided: proj=", this.projectiles[i], "wall=",collision_wall)
+
+                if(collision_wall.is_portal_wall && collision_wall.portal_on == ""){
+                    console.log("collision wall is portal!, Placing RN!");
+
+                    collision_wall.portal_on = this.projectiles[i].type;
+
+                    if(this.projectiles[i].type === "blue") {
+                        if(this.portal_blue.body != null) this.portal_blue.body.portal_on = "";
+                        this.portal_blue.body = collision_wall;
+                        this.portal_blue.pos = collision_wall.pos.plus(collision_wall.normal.times(0.1))
+                        this.portal_blue.top = vec3(0,1,0); // make it so on floor there
+                        this.portal_blue.normal = collision_wall.normal;
+                        this.compute_portal_transform(this.portal_blue, this.portal_orange);
+                        this.compute_portal_transform(this.portal_orange, this.portal_blue);
+
+                    } else {
+                        if(this.portal_orange.body != null) this.portal_orange.body.portal_on = "";
+                        this.portal_orange.body = collision_wall;
+                        this.portal_orange.pos = collision_wall.pos.plus(collision_wall.normal.times(0.1))
+                        this.portal_orange.top = vec3(0,1,0); // make it so on floor there
+                        this.portal_orange.normal = collision_wall.normal;
+                        this.compute_portal_transform(this.portal_orange, this.portal_blue);
+                        this.compute_portal_transform(this.portal_blue, this.portal_orange);
+                    }
+                }
+                
+                this.projectiles.splice(i, 1);
+                    i--;
                     continue;
 
-                if(this.projectiles[i].type == "blue" && this.portal_orange.body !== body) {
-                    this.portal_blue.body = body;
-                    this.portal_blue.pos = body.center.plus(body.normal.times(0.1))
-                    this.portal_blue.top = vec3(0,1,0);
-                    this.portal_blue.normal = body.normal;
-                    this.compute_portal_transform(this.portal_blue, this.portal_orange);
-                    this.compute_portal_transform(this.portal_orange, this.portal_blue);
-                } else if(this.projectiles[i].type == "orange" && this.portal_blue.body !== body) {
-                    this.portal_orange.body = body;
-                    this.portal_orange.pos = body.center.plus(body.normal.times(0.1))
-                    this.portal_orange.top = vec3(0,1,0);
-                    this.portal_orange.normal = body.normal;
-                    this.compute_portal_transform(this.portal_blue, this.portal_orange);
-                    this.compute_portal_transform(this.portal_orange, this.portal_blue);
-                }
-                this.projectiles.splice(i, 1)
-                i--;
-                break;
             }
+
+            
+            
+
+
+            // for (let body of this.wall_bodies) {
+            //     // Pass the two bodies and the collision shape to check_if_colliding():
+            //     let co
+            //     if (!projectile_body.check_if_colliding(body, this.collider))
+            //         continue;
+
+            //     if(this.projectiles[i].type == "blue" && this.portal_orange.body !== body) {
+            //         this.portal_blue.body = body;
+            //         this.portal_blue.pos = body.center.plus(body.normal.times(0.1))
+            //         this.portal_blue.top = vec3(0,1,0);
+            //         this.portal_blue.normal = body.normal;
+            //         this.compute_portal_transform(this.portal_blue, this.portal_orange);
+            //         this.compute_portal_transform(this.portal_orange, this.portal_blue);
+            //     } else if(this.projectiles[i].type == "orange" && this.portal_blue.body !== body) {
+            //         this.portal_orange.body = body;
+            //         this.portal_orange.pos = body.center.plus(body.normal.times(0.1))
+            //         this.portal_orange.top = vec3(0,1,0);
+            //         this.portal_orange.normal = body.normal;
+            //         this.compute_portal_transform(this.portal_blue, this.portal_orange);
+            //         this.compute_portal_transform(this.portal_orange, this.portal_blue);
+            //     }
+            //     this.projectiles.splice(i, 1)
+            //     i--;
+            //     break;
+            
         }
     }
 
     draw_projectiles(context, program_state) {
         for(let projectile of this.projectiles) {
-            this.shapes.sphere.draw(context, program_state, projectile.transform, this.materials.projectile.override({color: projectile.color}))
+            if(projectile.transform != null)
+                this.shapes.sphere.draw(context, program_state, projectile.transform, this.materials.projectile.override({color: projectile.color}))
         }
     }
 
@@ -586,14 +644,13 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         // ALL FRAME UPDATES
 
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
+        this.t = t;
         // const portal_lights = this.projectiles.map((projectile) => {
         //     //use size = 15 for more normal light effect
         //     const size = 100* Math.sin(6* t) + 10
         //     return new Light(projectile.newPos.to4(true), projectile.color, 15)\
         // })
         program_state.lights = [new Light(vec4(5, 5, 5, 1), color(1, 1, 1, 1), 10000) /*, ...portal_lights*/];
-
-        this.cube_1.post_multiply(Mat4.rotation(this.spin * dt * 30 / 60 * 2 * Math.PI, 1, 0, 0));
 
         this.update_y_pos(dt)
         this.update_main_camera(dt);

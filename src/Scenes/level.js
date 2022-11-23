@@ -9,6 +9,10 @@ export class Level{
 
         this.get_array();
         this.get_bodies();
+
+        // console.log("intersecrtion: ", this.get_point_plane_intersect(vec3(0,0,0), vec3(0,0,10), vec3(0,0,1), vec3(0,0,1)));
+
+        // console.log( "result: ", this.collision_point_to_point(vec3(15,1,1), vec3(15,1,11), 1));
     }
 
     get_array(){
@@ -57,7 +61,7 @@ export class Level{
             }
         }
     
-        //little block for test:
+        //little offset in wall for test:
         this.array[8][0][2][0] = [0, 0, 0];
         this.array[7][0][2][1] = [0, 0, 0];
         this.array[8][0][3][0] = [0, 0, 0];
@@ -69,7 +73,7 @@ export class Level{
         this.array[7][0][4][2] = [1, 1, 1];
         this.array[7][1][2][1] = [1, 0, 0];
 
-        console.log(this.array);
+        // console.log(this.array);
     }
 
     // array[x][y][z][0=normal in x-dir, 1=normal in y-dir, 2=normal in z-dir]
@@ -96,7 +100,8 @@ export class Level{
                             normal: null,
                             pos: null,
                             model_trans: null,
-                            is_portal: false
+                            is_portal_wall: false,
+                            portal_on: ""
                         }
                     }
                 }
@@ -126,13 +131,13 @@ export class Level{
                                     : Mat4.identity()
                                 );
     
-                                this.bodies[x][y][z][w].is_portal = this.array[x][y][z][w][2];
+                                this.bodies[x][y][z][w].is_portal_wall = this.array[x][y][z][w][2]==1?true:false;
                     }
                 }
             }
         }
 
-        console.log("bodies", this.bodies);
+        // console.log("bodies", this.bodies);
     }
     
     draw_walls(context, program_state, material_portal, material_no_portal, shape){
@@ -146,9 +151,8 @@ export class Level{
                 for(let z = 0; z < z_width; ++z){
                     for(let w = 0; w < 3; ++w){
                         if(this.bodies[x][y][z][w].draw){
-                            
                             shape.draw(context, program_state, this.bodies[x][y][z][w].model_trans, 
-                                this.bodies[x][y][z][w].is_portal? material_portal: material_no_portal);
+                                this.bodies[x][y][z][w].is_portal_wall? material_portal: material_no_portal);
                         }  
                         
                     }
@@ -157,5 +161,159 @@ export class Level{
         }
         
     }
+
+    get_wall(x, y, z, w){
+        if(x < 0 || x >= this.x_width || y < 0 || y >= this.y_width || z < 0 || z >= this.z_width){
+            console.error("got out of bound wall ",x,y,z,w);
+            return null;
+        }
+        return this.bodies[x][y][z][w];
+    }
+
+    collision_point_to_point(start, finish){
+        let cc = vec3(Math.floor(start[0]/2), Math.floor(start[1]/2), Math.floor(start[2]/2));
+
+        console.log("\n ======================== ");
+        console.log( "start: " + start.to_string(), "finish: " + finish.to_string() );
+        console.log( "cc: " + cc.to_string());
+
+        if(cc[0] >= this.x_width || cc[1] >= this.y_width || cc[2] >= this.z_width ) return null;
+
+        let v = finish.minus(start);
+
+        console.log( "v: " + v.to_string());
+
+        let res = this.get_collision_with_cube(start, v, cc.times(2).plus(vec3(1,1,1)), 0.01);
+
+        console.log( "res: ", res);
+
+        if(res == null) return null;
+
+        switch(res.face){
+            case 1:{
+                let body = this.get_wall(cc[0]+1, cc[1], cc[2], 0);
+                console.log("choose face 1 with body ", body);
+                if(body != null && body.draw)
+                    return body;
+                break;
+            }
+            case 2:{
+                let body = this.get_wall(cc[0], cc[1], cc[2], 0);
+                console.log("choose face 2 with body ", body);
+                if(body != null && body.draw)
+                    return body;
+                break;
+            }
+            case 3:{
+                let body = this.get_wall(cc[0], cc[1]+1, cc[2], 1);
+                console.log("choose face 3 with body ", body);
+                if(body != null && body.draw)
+                    return body;
+                break;
+            }
+            case 4:{
+                let body = this.get_wall(cc[0], cc[1], cc[2], 1);
+                console.log("choose face 4 with body ", body);
+                if(body != null && body.draw)
+                    return body;
+                break;
+            }
+            case 5:{
+                let body = this.get_wall(cc[0], cc[1], cc[2]+1, 2);
+                console.log("choose face 5 with body ", body);
+                if(body != null && body.draw)
+                    return body;
+                break;
+            }
+            case 6:{
+                let body = this.get_wall(cc[0], cc[1], cc[2], 2);
+                console.log("choose face 6 with body ", body);
+                if(body != null && body.draw)
+                    return body;
+                break;
+            }
+        }
+
+        let new_start = res.intersection.plus(v.normalized().times(0.01));
+
+        console.log("the face was not a wall, new one with new start: ", new_start);
+
+        return this.collision_point_to_point(new_start, finish);
+    }
+
+    get_collision_with_cube(start, v, offset, err){
+        // do collision with 6 sides return side and intersectuionb
+
+        let p = start.minus(offset);
+
+        let int;
+
+        int = this.check_collision_bound(p, v, vec3(1,0,0), vec3(1,0,0), 1, 1, -1, 1, -1, 1, err);
+        if(int != null) return {face:1, intersection: int.plus(offset)};
+
+        int = this.check_collision_bound(p, v, vec3(-1,0,0), vec3(-1,0,0), -1, -1, -1, 1, -1, 1, err);
+        if(int != null) return {face:2, intersection: int.plus(offset)};
+
+        int = this.check_collision_bound(p, v, vec3(0,1,0), vec3(0,1,0), -1, 1, 1, 1, -1, 1, err);
+        if(int != null) return {face:3, intersection: int.plus(offset)};
+
+        int = this.check_collision_bound(p, v, vec3(0,-1,0), vec3(0,-1,0), -1, 1, -1, -1, -1, 1, err);
+        if(int != null) return {face:4, intersection: int.plus(offset)};
+
+        int = this.check_collision_bound(p, v, vec3(0,0,1), vec3(0,0,1), -1, 1, -1, 1, 1, 1, err);
+        if(int != null) return {face:5, intersection: int.plus(offset)};
+
+        int = this.check_collision_bound(p, v, vec3(0,0,-1), vec3(0,0,-1), -1, 1, -1, 1, -1, -1, err);
+        if(int != null) return {face:6, intersection: int.plus(offset)};
+
+        return null;
+    }
+
+    check_collision_bound(p, v, o, n, x_min, x_max, y_min, y_max, z_min, z_max, err){
+        
+
+        console.log("  - getting intersection between p="+p.to_string()+", v="+v.to_string()+", o="+o.to_string()+", n="+n.to_string());
+        let int = this.get_point_plane_intersect(p, v, o, n);
+
+        if(int == null) return null;
+
+        console.log("     - intersection not null = " + int.to_string());
+
+        if( int[0] < x_min-err || int[0] > x_max+err ) return null;
+        if( int[1] < y_min-err || int[1] > y_max+err ) return null;
+        if( int[2] < z_min-err || int[2] > z_max+err ) return null;
+
+        console.log("     - intersection within square! ");
+
+        return int;
+    }
+
+    // point vector plane_origin normal
+    get_point_plane_intersect(p, v, o, n){
+
+        if(v.dot(n) < 0.0001)
+            return null; // no intersection
+
+        // console.log("      - vector does cross plane");
+
+        const d = o.dot(n);
+
+        const i = v[0]>v[1]?(v[0]>v[2]?0:2):(v[1]>v[2]?1:2);
+
+        const t = (d/n[i] - p[i])/v[i];
+
+        // console.log("      - d = " + d + ", t = " + t);
+
+        if(t>1 || t<0) 
+            return null; // vector too far
+
+        const inter = p.plus(v.times(t));
+
+        // console.log("      - inter = " + inter.to_string());
+
+        return inter;
+    }
+
+
 }
 
