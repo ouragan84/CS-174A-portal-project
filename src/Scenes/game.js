@@ -183,9 +183,6 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     }
 
     make_control_panel() {
-        this.key_triggered_button("Cube rotation", ["c"], () => this.spin ^= 1);
-
-        this.new_line();
 
         this.textures.blue_portal_primary.result_img = this.control_panel.appendChild(Object.assign(document.createElement("img"),
             {style: "width:200px; height:" + 200 * this.aspect_ratio + "px"}));
