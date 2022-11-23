@@ -314,9 +314,11 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
     draw_portal(context, program_state, portal, material, draw_filled=false){
         this.shapes.portal.draw(context, program_state, portal.inv_screen_transform, material.override({is_filled : (draw_filled?1:0)}));
+        this.shapes.portal_around.draw(context, program_state, portal.inv_screen_transform.times(Mat4.scale(1.01,1.01,1.01)), this.materials.portal_around.override({color: material.color}));
     }
 
     draw_player(context, program_state){
+        // body
         this.shapes.box.draw(context, program_state,
             Mat4.translation(this.main_camera.pos[0], this.main_camera.pos[1], this.main_camera.pos[2])
                 .times(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0))
@@ -324,11 +326,12 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                 .times(Mat4.scale(.2, .5, .2)),
             this.materials.phong.override({color: hex_color("#946afc")}));
 
+        // head
         this.shapes.box.draw(context, program_state,
             Mat4.translation(this.main_camera.pos[0], this.main_camera.pos[1], this.main_camera.pos[2])
                 .times(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0))
                 .times(Mat4.rotation(this.main_camera.rot[1], 1, 0, 0))
-                .times(Mat4.translation(0,.1,-.05))
+                .times(Mat4.translation(0,.1,-.04))
                 .times(Mat4.scale(.25, .25, .25)),
             this.materials.phong.override({color: hex_color("#e3ac88")}));
     }
