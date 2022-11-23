@@ -22,6 +22,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             square: new defs.Square(),
             sphere: new defs.Subdivision_Sphere(4),
             portal: new defs.Rounded_Capped_Cylinder(3, 24),
+            portal_around: new defs.Cylindrical_Tube(3,24)
         }
 
         this.view_options = {
@@ -50,6 +51,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                 wall_regular: new Material(new defs.Textured_Phong(), {ambient: .8, diffusivity: .5, specularity:0, texture: new Texture("src/assets/regular_wall.png")}),
 
                 phong: new Material(new Phong_Shader(), {ambient: .5, diffusivity:.5, specularity:0}),
+
+                portal_around: new Material(new Phong_Shader(), {ambient: 1, diffusivity:0, specularity:0}),
 
                 plastic: new Material(new defs.Phong_Shader(),
                     {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
@@ -696,7 +699,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             transform: null,
         });
 
-        console.log("shoot ", this.projectiles);
+        // console.log("shoot ", this.projectiles);
     }
 
     update_projectiles(dt) {
@@ -710,7 +713,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             let age = (this.t - this.projectiles[i].time);
  
             if(age > life_span) {
-                console.log("projectile cancled = ", this.projectiles[i]);
+                // console.log("projectile cancled = ", this.projectiles[i]);
                 this.projectiles.splice(i, 1)
                 i--;
                 continue;
@@ -735,10 +738,10 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
             if(collision_wall != null){
 
-                console.log("projectile collided: proj=", this.projectiles[i], "wall=",collision_wall)
+                // console.log("projectile collided: proj=", this.projectiles[i], "wall=",collision_wall)
 
                 if(collision_wall.is_portal_wall && collision_wall.portal_on == ""){
-                    console.log("collision wall is portal!, Placing RN!");
+                    // console.log("collision wall is portal!, Placing RN!");
 
                     collision_wall.portal_on = this.projectiles[i].type;
 
@@ -810,7 +813,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     display(context, program_state) {
         // ALL FRAME UPDATES
 
-        const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
+        const t = program_state.animation_time / 1000, dt = Math.min(program_state.animation_delta_time / 1000, 0.1);
         this.t = t;
         // const portal_lights = this.projectiles.map((projectile) => {
         //     //use size = 15 for more normal light effect

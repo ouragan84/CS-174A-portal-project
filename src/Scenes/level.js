@@ -164,7 +164,7 @@ export class Level{
 
     get_wall(x, y, z, w){
         if(x < 0 || x >= this.x_width || y < 0 || y >= this.y_width || z < 0 || z >= this.z_width){
-            console.error("got out of bound wall ",x,y,z,w);
+            // console.error("got out of bound wall ",x,y,z,w);
             return null;
         }
         return this.bodies[x][y][z][w];
