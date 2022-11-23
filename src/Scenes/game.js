@@ -1,5 +1,4 @@
 import {defs, tiny} from '../lib/common.js';
-import {Body} from "./examples/collisions-demo.js";
 import {Level} from "./level.js";
 // Pull these names into this module's scope for convenience:
 const {vec3, vec4, color, hex_color, Matrix, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
@@ -44,19 +43,20 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
         this.materials =
             {
-                earth: new Material(new Fake_Bump_Map(1), {ambient: .5, texture: new Texture("src/assets/earth.gif")}),
+                // earth: new Material(new Fake_Bump_Map(1), {ambient: .5, texture: new Texture("src/assets/earth.gif")}),
 
-                wall_portal: new Material(new defs.Textured_Phong(), {ambient: .8, diffusivity: 0, specularity:0, texture: new Texture("src/assets/portal_wall.png")}),
+                wall_portal: new Material(new defs.Textured_Phong(), {ambient: .8, diffusivity: .5, specularity:0, texture: new Texture("src/assets/portal_wall.png")}),
 
-                wall_regular: new Material(new defs.Textured_Phong(), {ambient: .8, diffusivity: 0, specularity:0, texture: new Texture("src/assets/regular_wall.png")}),
+                wall_regular: new Material(new defs.Textured_Phong(), {ambient: .8, diffusivity: .5, specularity:0, texture: new Texture("src/assets/regular_wall.png")}),
 
-                phong: new Material(new Phong_Shader(), {ambient: .5}),
+                phong: new Material(new Phong_Shader(), {ambient: .5, diffusivity:.5, specularity:0}),
 
                 plastic: new Material(new defs.Phong_Shader(),
                     {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
 
-                default: new Material(new defs.Phong_Shader(),
-                    {ambient: 1, diffusivity: 0.1, specularity: 0.1, color: hex_color("#6da8e3")}),
+                // default: new Material(new defs.Phong_Shader(),
+                //     {ambient: 1, diffusivity: 0.1, specularity: 0.1, color: hex_color("#6da8e3")}),
+
                 projectile: new Material(new defs.Phong_Shader(), {ambient: 1, diffusivity: 0, specularity: 1.0}) //probably change
             }
 
@@ -66,11 +66,14 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.main_camera = {
             pos: vec3(5, 1, 5),
             top: vec3(0, 1, 0),
+            height: 1.0,
+            width: 0.2,
             look_dir: null,
             transform: null,
             rot: vec3(0, 0, 0),
             pos_dir: vec3(0, 0, 0),
             rot_dir: vec3(0, 0, 0),
+            is_grounded: false,
             speed: 3.0,
             turning_speed: 0.8 * Math.PI
         }
@@ -128,7 +131,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.velocity_y = 0;
         
         this.projectiles = [];
-        this.collider = {intersect_test: Body.intersect_cube, points: new defs.Subdivision_Sphere(4), leeway: .3}
+        // this.collider = {intersect_test: Body.intersect_cube, points: new defs.Subdivision_Sphere(4), leeway: .3}
 
         this.compute_portal_transform( this.portal_blue,  this.portal_orange);
         this.compute_portal_transform( this.portal_orange, this.portal_blue);
@@ -185,28 +188,24 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             {style: "width:200px; height:" + 200 * this.aspect_ratio + "px"}));
 
         this.new_line();
-
-        this.key_triggered_button("Up", [" "], () => this.main_camera.pos_dir[1] = 1, undefined, () => this.main_camera.pos_dir[1] = 0);
-        this.key_triggered_button("Down", ["z"], () => this.main_camera.pos_dir[1] = -1, undefined, () => this.main_camera.pos_dir[1] = 0);
-        this.new_line();
         this.key_triggered_button("Left Click (blue)", ["["], () => this.shoot_projectile("blue"))
         this.key_triggered_button("Right Click (orange)", ["]"], () => this.shoot_projectile("orange"))
 
         this.key_triggered_button("Jump", [" "], () => this.jump());
-        this.key_triggered_button("Forward", ["w"], () => this.main_camera.pos_dir[2] = -1, undefined, () => this.main_camera.pos_dir[2] = 0);
-        this.key_triggered_button("Back", ["s"], () => this.main_camera.pos_dir[2] = 1, undefined, () => this.main_camera.pos_dir[2] = 0);
+        this.key_triggered_button("Forward", ["w"], () => this.move_player(2,-1), undefined, () => this.move_player(2,0));
+        this.key_triggered_button("Back", ["s"], () => this.move_player(2,1), undefined, () => this.move_player(2,0));
         this.new_line();
-        this.key_triggered_button("Left", ["a"], () => this.main_camera.pos_dir[0] = -1, undefined, () => this.main_camera.pos_dir[0] = 0);
-        this.key_triggered_button("Right", ["d"], () => this.main_camera.pos_dir[0] = 1, undefined, () => this.main_camera.pos_dir[0] = 0);
+        this.key_triggered_button("Left", ["a"], () => this.move_player(0,-1), undefined, () => this.move_player(0,0));
+        this.key_triggered_button("Right", ["d"], () => this.move_player(0,1), undefined, () => this.move_player(0,0));
         this.new_line();
         //this.key_triggered_button("Down", ["z"], () => this.main_camera.pos_dir[1] = -1, undefined, () => this.main_camera.pos_dir[1] = 0);
 
         this.new_line();
-        this.key_triggered_button("Look Left", ["q"], () => this.main_camera.rot_dir[0] = 1, undefined, () => this.main_camera.rot_dir[0] = 0);
-        this.key_triggered_button("Look Right", ["e"], () => this.main_camera.rot_dir[0] = -1, undefined, () => this.main_camera.rot_dir[0] = 0);
+        this.key_triggered_button("Look Left", ["q"], () => this.rotate_player(0,1), undefined, () => this.rotate_player(0,0));
+        this.key_triggered_button("Look Right", ["e"], () => this.rotate_player(0,-1), undefined, () => this.rotate_player(0,0));
         this.new_line();
-        this.key_triggered_button("Look Up", ["r"], () => this.main_camera.rot_dir[1] = 1, undefined, () => this.main_camera.rot_dir[1] = 0);
-        this.key_triggered_button("Look Down", ["f"], () => this.main_camera.rot_dir[1] = -1, undefined, () => this.main_camera.rot_dir[1] = 0);
+        this.key_triggered_button("Look Up", ["r"], () => this.rotate_player(1,1), undefined, () => this.rotate_player(1,0));
+        this.key_triggered_button("Look Down", ["f"], () => this.rotate_player(1,-1), undefined, () => this.rotate_player(1,0));
 
         this.new_line();
 
@@ -316,12 +315,98 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             this.materials.phong.override({color: hex_color("#e3ac88")}));
     }
 
+    jump() {
+        //limit to single jump
+        if(!this.main_camera.is_grounded) return;
+
+        this.main_camera.pos_dir[1] = 5;
+        // this.main_camera.pos.add_by(vec3(0, 0.00001, 0))
+    }
+
+    move_player(coord, amount){
+        this.main_camera.pos_dir[coord] = amount * this.main_camera.speed;
+    }
+
+    rotate_player(coord, amount){
+        this.main_camera.rot_dir[coord] = amount * this.main_camera.turning_speed;
+    }
+
+    get_player_side_collision(dir, center, widths, err_out, err_in){
+        let collide, points = [];
+
+        if(Math.abs(dir[0]) > .999){
+            points.push(center.plus(vec3(0,widths[1],widths[2])));
+            points.push(center.plus(vec3(0,-widths[1],widths[2])));
+            points.push(center.plus(vec3(0,widths[1],-widths[2])));
+            points.push(center.plus(vec3(0,-widths[1],-widths[2])));
+        }
+
+        if(Math.abs(dir[1]) > .999){
+            points.push(center.plus(vec3(widths[0],0,widths[2])));
+            points.push(center.plus(vec3(-widths[0],0,widths[2])));
+            points.push(center.plus(vec3(widths[0],0,-widths[2])));
+            points.push(center.plus(vec3(-widths[0],0,-widths[2])));
+        }
+
+        if(Math.abs(dir[2]) > .999){
+            points.push(center.plus(vec3(widths[0],widths[1],0)));
+            points.push(center.plus(vec3(-widths[0],widths[1],0)));
+            points.push(center.plus(vec3(widths[0],-widths[1],0)));
+            points.push(center.plus(vec3(-widths[0],-widths[1],0)));
+        }
+
+        for(let point of points){
+            collide = this.level.collision_point_to_point(point.minus(dir.times(err_in)), point.plus(dir.times(err_out)));
+            if(collide != null)
+                return collide;
+        }
+
+        return null;
+        
+    }
+
     update_main_camera(dt){
-        this.main_camera.rot.add_by(this.main_camera.rot_dir.times(dt*this.main_camera.turning_speed));
-        this.main_camera.rot.forEach(e => e = e%(2.0*Math.PI));
+
+        const gravity_factor = 9.8;
+        const max_fall_speed = 3;
+
+        
+
+        let half_body_height = this.main_camera.height/2 + 0.2; // change
+        let center; let widths = vec3(this.main_camera.width, half_body_height, this.main_camera.width);
+
+        // check collision with floor
+        center = this.main_camera.pos.minus(vec3(0,this.main_camera.height,0))
+        const floor_collide = this.get_player_side_collision(vec3(0,-1,0), center, widths, 0.01, 0.5);
+
+        this.main_camera.is_grounded = floor_collide != null;
+
+        // gravity shit (sometimes not reliable if laggy)
+
+        if(this.main_camera.is_grounded && this.main_camera.pos_dir[1] <= 0){
+            this.main_camera.pos[1] = floor_collide.pos[1] + this.main_camera.height;
+            this.main_camera.pos_dir[1] = 0;
+        }else{
+            this.main_camera.pos_dir[1] -= dt * gravity_factor;
+
+            if(this.main_camera.pos_dir[1] < 0){
+                this.main_camera.pos_dir[1] = Math.min(this.main_camera.pos_dir[1], max_fall_speed)
+            }
+            
+        }
+
+        // rotation
+
+        this.main_camera.rot.add_by(this.main_camera.rot_dir.times(dt));
+        this.main_camera.rot[0] = this.main_camera.rot[0]%(2.0*Math.PI); 
+        this.main_camera.rot[1] = (this.main_camera.rot[1] < -Math.PI/2 + 0.01)? -Math.PI/2 + 0.01 : 
+                            (this.main_camera.rot[1] > Math.PI/2 - 0.01)? Math.PI/2 - 0.01 : this.main_camera.rot[1];
+
+
+        // position
 
         this.main_camera.pos.add_by(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0)
-            .times(Mat4.rotation(this.main_camera.rot[1], 1, 0, 0)).times(this.main_camera.pos_dir.times(dt*this.main_camera.speed)));
+            .times(this.main_camera.pos_dir.times(dt)));
 
         this.main_camera.look_dir = Mat4.identity()
             .times(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0))
@@ -329,9 +414,21 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             .times(Mat4.translation(0, 0, -1))
             .times(vec4(0,0,0,1)).to3();
 
-        const look_at_point = this.main_camera.look_dir.plus(this.main_camera.pos);
+        // collision with walls
 
+
+
+
+        // add teleport
+
+
+        // get camera attributes
+
+        const look_at_point = this.main_camera.look_dir.plus(this.main_camera.pos);
         this.main_camera.transform = Mat4.look_at(this.main_camera.pos, look_at_point, this.main_camera.top);
+
+
+        
     }
 
     update_portal_camera(portal, other, camera, iteration=1){
@@ -355,7 +452,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         return trans;
     }
 
-    get_oblique_projection_matrix(proj_mat, w_to_cam_mat, plane_normal, plane_origin){ // *orgasm*
+    get_oblique_projection_matrix(proj_mat, w_to_cam_mat, plane_normal, plane_origin){
 
         // cam space conversion
         let plane_normal_cam = w_to_cam_mat.times(plane_normal.to4(false));  // normal must lie inward w/ respect to view frustrum
@@ -513,7 +610,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     update_projectiles(dt) {
         const origin = Mat4.identity();
         const projectile_scale = 0.1;
-        const speed = 10.0;
+        const speed = 15.0;
         const life_span = 3.0;
         // const projectile_scale = 0.025 * Math.sin(6 * dt) + 0.14;
         for(let i = 0; i < this.projectiles.length; ++i) {
@@ -618,29 +715,6 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         }
     }
 
-    jump() {
-        //limit to single jump
-        if(this.main_camera.pos[1] > 1.2) return;
-
-        this.velocity_y = .5;
-        this.main_camera.pos.add_by(vec3(0, 0.00001, 0))
-    }
-
-    update_y_pos(dt) {
-        if(this.main_camera.pos[1] <= 1) {
-            this.main_camera.pos[1] = 1;
-            this.velocity_y = 0;
-            return;
-        }
-
-        this.velocity_y -= dt;
-        if(this.main_camera.pos[1] + this.velocity_y < 1) {
-            this.main_camera.pos[1] = 1;
-        } else {
-            this.main_camera.pos.add_by(vec3(0, this.velocity_y, 0))
-        }
-    }
-
     display(context, program_state) {
         // ALL FRAME UPDATES
 
@@ -653,7 +727,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         // })
         program_state.lights = [new Light(vec4(5, 5, 5, 1), color(1, 1, 1, 1), 10000) /*, ...portal_lights*/];
 
-        this.update_y_pos(dt)
+        // this.update_y_pos(dt)
         this.update_main_camera(dt);
         this.update_projectiles(dt);
 

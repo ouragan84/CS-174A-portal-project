@@ -173,61 +173,61 @@ export class Level{
     collision_point_to_point(start, finish){
         let cc = vec3(Math.floor(start[0]/2), Math.floor(start[1]/2), Math.floor(start[2]/2));
 
-        console.log("\n ======================== ");
-        console.log( "start: " + start.to_string(), "finish: " + finish.to_string() );
-        console.log( "cc: " + cc.to_string());
+        // console.log("\n ======================== ");
+        // console.log( "start: " + start.to_string(), "finish: " + finish.to_string() );
+        // console.log( "cc: " + cc.to_string());
 
         if(cc[0] >= this.x_width || cc[1] >= this.y_width || cc[2] >= this.z_width ) return null;
 
         let v = finish.minus(start);
 
-        console.log( "v: " + v.to_string());
+        // console.log( "v: " + v.to_string());
 
         let res = this.get_collision_with_cube(start, v, cc.times(2).plus(vec3(1,1,1)), 0.01);
 
-        console.log( "res: ", res);
+        // console.log( "res: ", res);
 
         if(res == null) return null;
 
         switch(res.face){
             case 1:{
                 let body = this.get_wall(cc[0]+1, cc[1], cc[2], 0);
-                console.log("choose face 1 with body ", body);
+                // console.log("choose face 1 with body ", body);
                 if(body != null && body.draw)
                     return body;
                 break;
             }
             case 2:{
                 let body = this.get_wall(cc[0], cc[1], cc[2], 0);
-                console.log("choose face 2 with body ", body);
+                // console.log("choose face 2 with body ", body);
                 if(body != null && body.draw)
                     return body;
                 break;
             }
             case 3:{
                 let body = this.get_wall(cc[0], cc[1]+1, cc[2], 1);
-                console.log("choose face 3 with body ", body);
+                // console.log("choose face 3 with body ", body);
                 if(body != null && body.draw)
                     return body;
                 break;
             }
             case 4:{
                 let body = this.get_wall(cc[0], cc[1], cc[2], 1);
-                console.log("choose face 4 with body ", body);
+                // console.log("choose face 4 with body ", body);
                 if(body != null && body.draw)
                     return body;
                 break;
             }
             case 5:{
                 let body = this.get_wall(cc[0], cc[1], cc[2]+1, 2);
-                console.log("choose face 5 with body ", body);
+                // console.log("choose face 5 with body ", body);
                 if(body != null && body.draw)
                     return body;
                 break;
             }
             case 6:{
                 let body = this.get_wall(cc[0], cc[1], cc[2], 2);
-                console.log("choose face 6 with body ", body);
+                // console.log("choose face 6 with body ", body);
                 if(body != null && body.draw)
                     return body;
                 break;
@@ -236,7 +236,7 @@ export class Level{
 
         let new_start = res.intersection.plus(v.normalized().times(0.01));
 
-        console.log("the face was not a wall, new one with new start: ", new_start);
+        // console.log("the face was not a wall, new one with new start: ", new_start);
 
         return this.collision_point_to_point(new_start, finish);
     }
@@ -272,18 +272,18 @@ export class Level{
     check_collision_bound(p, v, o, n, x_min, x_max, y_min, y_max, z_min, z_max, err){
         
 
-        console.log("  - getting intersection between \np="+p.to_string()+", v="+v.to_string()+"\n, o="+o.to_string()+", n="+n.to_string());
+        // console.log("  - getting intersection between \np="+p.to_string()+", v="+v.to_string()+"\n, o="+o.to_string()+", n="+n.to_string());
         let int = this.get_point_plane_intersect(p, v, o, n);
 
         if(int == null) return null;
 
-        console.log("     - intersection not null = " + int.to_string());
+        // console.log("     - intersection not null = " + int.to_string());
 
         if( int[0] < x_min-err || int[0] > x_max+err ) return null;
         if( int[1] < y_min-err || int[1] > y_max+err ) return null;
         if( int[2] < z_min-err || int[2] > z_max+err ) return null;
 
-        console.log("     - intersection is within square!" );
+        // console.log("     - intersection is within square!" );
 
         return int;
     }
@@ -294,7 +294,7 @@ export class Level{
         if(Math.abs(v.dot(n)) < 0.0001)
             return null; // no intersection
 
-        console.log("      - vector does cross plane");
+        // console.log("      - vector does cross plane");
 
         const d = o.dot(n);
 
@@ -304,14 +304,14 @@ export class Level{
 
         const t = (d/n[i] - p[i])/v[i];
 
-        console.log("      - d = " + d + ", t = " + t + ", i = " + i );
+        // console.log("      - d = " + d + ", t = " + t + ", i = " + i );
 
         if(t>1 || t<0) 
             return null; // vector too far
 
         const inter = p.plus(v.times(t));
 
-        console.log("      - inter = " + inter.to_string());
+        // console.log("      - inter = " + inter.to_string());
 
         return inter;
     }
