@@ -61,7 +61,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                 //     {ambient: 1, diffusivity: 0.1, specularity: 0.1, color: hex_color("#6da8e3")}),
 
                 projectile: new Material(new defs.Phong_Shader(), {ambient: 1, diffusivity: 0, specularity: 1.0}) //probably change
-            }
+        }
 
         // this.spin = 0;
         // this.cube_1 = Mat4.translation(14 , 1.1, 14);
@@ -77,8 +77,11 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             rot_input: vec3(0,0,0),
             velocity: vec3(0,0,0),
             walking_speed: 4.0,
+            air_swerve_speed: 5.0,
             turning_speed: 0.8 * Math.PI,
-
+            gravity_factor: 9.8,
+            capped_falling_speed: 8.0,
+            jumping_speed: 8.0,
 
             height_on_bottom: 1.0,
             height_on_top: 0.3,
@@ -282,29 +285,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     draw_visible_scene(context, program_state, t){
         // this.draw_ground(context, program_state)
         // this.draw_walls(context, program_state)
-        this.draw_projectiles(context, program_state)
-
-        // this.shapes.box.draw(context, program_state, this.cube_1, this.materials.earth);
-
-        // this.shapes.box.draw(context, program_state, Mat4.identity()
-        //         .times(Mat4.translation(7,1,1))
-        //         .times(Mat4.scale(.3,.3,.3)),
-        //     this.materials.phong.override({color: hex_color("#FF80FF")}));
-
-        // this.shapes.box.draw(context, program_state, Mat4.identity()
-        //         .times(Mat4.translation(2, this.get_cosine_interpolation(1, 4, 3, t, 0), 12))
-        //         .times(Mat4.scale(.3,.5,.3)),
-        //     this.materials.phong.override({color: hex_color("#00FF55")}));
-
-        // this.shapes.box.draw(context, program_state, Mat4.identity()
-        //         .times(Mat4.translation(2, .5, 8))
-        //         .times(Mat4.scale(.5,.5,this.get_cosine_interpolation(1, .2, 1.2, t, 0))),
-        //     this.materials.phong.override({color: hex_color("#f76d28")}));
-
-        // this.shapes.box.draw(context, program_state, Mat4.identity()
-        //         .times(Mat4.translation(0,0,0))
-        //         .times(Mat4.scale(.2,.2,.2)),
-        //     this.materials.phong.override({color: hex_color("#00FFFF")}));
+        this.draw_projectiles(context, program_state);
 
         this.level.draw_walls(context, program_state, this.materials.wall_portal, this.materials.wall_regular, this.shapes.square);
     }
@@ -337,7 +318,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         //limit to single jump
         if(!this.main_camera.is_grounded) return;
 
-        this.main_camera.velocity[1] = 5;
+        this.main_camera.velocity[1] = this.main_camera.jumping_speed;
         // this.main_camera.pos.add_by(vec3(0, 0.00001, 0))
     }
 
@@ -398,9 +379,6 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
     update_player_vertical_veolcity(dt){
 
-        const gravity_factor = 9.8;
-        const max_fall_speed = 3;
-
         const col_cent = this.main_camera.pos.plus(this.main_camera.collision_center);
 
         // console.log("col_cent ", col_cent)
@@ -423,11 +401,11 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             this.main_camera.velocity[1] = 0;
         }else{
             // otherwise go down
-            this.main_camera.velocity[1] -= dt * gravity_factor;
+            this.main_camera.velocity[1] -= dt * this.main_camera.gravity_factor;
 
             if(this.main_camera.velocity[1] < 0){
                 // cap falling velocity
-                this.main_camera.velocity[1] = Math.min(this.main_camera.velocity[1], max_fall_speed)
+                this.main_camera.velocity[1] = Math.max(this.main_camera.velocity[1], -this.main_camera.capped_falling_speed);
             }
         }
 
@@ -436,16 +414,26 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     update_player_velocity(dt){
         this.update_player_vertical_veolcity(dt);
 
+        // const speed = this.main_camera.is_grounded? this.main_camera.walking_speed : this.main_camera.air_swerve_speed;
+
         if(this.main_camera.is_grounded){
             this.main_camera.velocity[0] = ( Math.cos(this.main_camera.rot[0]) * this.main_camera.pos_input[0]
                 + Math.sin(this.main_camera.rot[0]) * this.main_camera.pos_input[2]) * this.main_camera.walking_speed;
 
             this.main_camera.velocity[2] = ( Math.cos(this.main_camera.rot[0]) * this.main_camera.pos_input[2]
                 - Math.sin(this.main_camera.rot[0]) * this.main_camera.pos_input[0]) * this.main_camera.walking_speed;
+        }else{
+            this.main_camera.velocity[0] += dt * ( Math.cos(this.main_camera.rot[0]) * this.main_camera.pos_input[0]
+                + Math.sin(this.main_camera.rot[0]) * this.main_camera.pos_input[2]) * this.main_camera.air_swerve_speed;
+            this.main_camera.velocity[2] += dt * ( Math.cos(this.main_camera.rot[0]) * this.main_camera.pos_input[2]
+                - Math.sin(this.main_camera.rot[0]) * this.main_camera.pos_input[0]) * this.main_camera.air_swerve_speed;
+
+            if(this.main_camera.velocity[0] > this.main_camera.walking_speed) this.main_camera.velocity[0] = this.main_camera.walking_speed;
+            if(this.main_camera.velocity[0] < -this.main_camera.walking_speed) this.main_camera.velocity[0] = -this.main_camera.walking_speed;
+            if(this.main_camera.velocity[2] > this.main_camera.walking_speed) this.main_camera.velocity[2] = this.main_camera.walking_speed;
+            if(this.main_camera.velocity[2] < -this.main_camera.walking_speed) this.main_camera.velocity[2] = -this.main_camera.walking_speed;
         }
         
-        // this.main_camera.pos.add_by(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0)
-        //     .times(this.main_camera.pos_dir.times(dt)));
     }
 
     handle_player_collision(){
@@ -682,6 +670,13 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
     }
 
+    draw_projectiles(context, program_state) {
+        for(let projectile of this.projectiles) {
+            if(projectile.transform != null)
+                this.shapes.sphere.draw(context, program_state, projectile.transform, this.materials.projectile.override({color: projectile.color}))
+        }
+    }
+
     shoot_projectile(type) {
         //limit shooting to every _ seconds
         if(this.t - this.last_fired < 1.0) return;
@@ -770,43 +765,6 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                     continue;
 
             }
-
-            
-            
-
-
-            // for (let body of this.wall_bodies) {
-            //     // Pass the two bodies and the collision shape to check_if_colliding():
-            //     let co
-            //     if (!projectile_body.check_if_colliding(body, this.collider))
-            //         continue;
-
-            //     if(this.projectiles[i].type == "blue" && this.portal_orange.body !== body) {
-            //         this.portal_blue.body = body;
-            //         this.portal_blue.pos = body.center.plus(body.normal.times(0.1))
-            //         this.portal_blue.top = vec3(0,1,0);
-            //         this.portal_blue.normal = body.normal;
-            //         this.compute_portal_transform(this.portal_blue, this.portal_orange);
-            //         this.compute_portal_transform(this.portal_orange, this.portal_blue);
-            //     } else if(this.projectiles[i].type == "orange" && this.portal_blue.body !== body) {
-            //         this.portal_orange.body = body;
-            //         this.portal_orange.pos = body.center.plus(body.normal.times(0.1))
-            //         this.portal_orange.top = vec3(0,1,0);
-            //         this.portal_orange.normal = body.normal;
-            //         this.compute_portal_transform(this.portal_blue, this.portal_orange);
-            //         this.compute_portal_transform(this.portal_orange, this.portal_blue);
-            //     }
-            //     this.projectiles.splice(i, 1)
-            //     i--;
-            //     break;
-            
-        }
-    }
-
-    draw_projectiles(context, program_state) {
-        for(let projectile of this.projectiles) {
-            if(projectile.transform != null)
-                this.shapes.sphere.draw(context, program_state, projectile.transform, this.materials.projectile.override({color: projectile.color}))
         }
     }
 
