@@ -80,8 +80,9 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             air_swerve_speed: 5.0,
             turning_speed: 0.8 * Math.PI,
             gravity_factor: 9.8,
-            capped_falling_speed: 8.0,
-            jumping_speed: 8.0,
+            capped_falling_speed: 7.5,
+            jumping_speed: 7.5,
+            portal_penetrating: null,
 
             height_on_bottom: 1.0,
             height_on_top: 0.3,
@@ -161,6 +162,14 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         // this.wall_bodies = level.get_wall_bodies(level.array);
 
         this.level = new Level();
+        this.level.bodies[2][0][0][2].is_portal_wall = true;
+        this.level.bodies[2][0][0][2].portal_on = "blue";
+        this.portal_blue.body = this.level.bodies[2][0][0][2];
+        
+        this.level.bodies[0][0][2][0].is_portal_wall = true;
+        this.level.bodies[0][0][2][0].portal_on = "orange";
+        this.portal_orange.body = this.level.bodies[0][0][2][0];
+
         this.t = 0;
         this.last_fired = 0;
     }
@@ -332,6 +341,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
     get_player_side_collision(dir, center, widths, err_out = 0.01, err_in = 0.39, shrink_err=0.01){
         let points = [];
+        let candidate = null;
+        let is_colliding_with_single_portal = true;
 
         if(Math.abs(dir[0]) > .999){
             points.push(center.plus(vec3(0,widths[1]-shrink_err,widths[2]-shrink_err)));
@@ -356,13 +367,14 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         
         for(let point of points){
             const collide = this.level.collision_point_to_point(point.minus(dir.times(err_in)), point.plus(dir.times(err_out)));
-            if(collide != null){
-                return collide;
-            }
-                
+           
+            if(collide == null) {is_colliding_with_single_portal = false; continue;}
+            if(candidate == null) candidate = collide;
+            if(!collide.is_portal_wall || (candidate.portal_on !== collide.portal_on)) 
+                is_colliding_with_single_portal = false;
         }
 
-        return null;
+        return {wall: candidate, is_portal: (is_colliding_with_single_portal && candidate.is_portal_wall)};
         
     }
 
@@ -384,20 +396,20 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         // console.log("col_cent ", col_cent)
 
         const floor_collide = this.get_player_side_collision(vec3(0,-1,0), 
-            col_cent.plus(vec3(0,-this.main_camera.widths[1],0)), this.main_camera.widths);
-        this.main_camera.is_grounded = floor_collide != null;
+            col_cent.plus(vec3(0,-this.main_camera.widths[1],0)), this.main_camera.widths, 0.01, 0.75);
+        this.main_camera.is_grounded = floor_collide.wall != null;
 
         const ceil_collide = this.get_player_side_collision(vec3(0,1,0), 
-        col_cent.plus(vec3(0,this.main_camera.widths[1],0)), this.main_camera.widths);
-        const is_ceiled = ceil_collide != null;
+        col_cent.plus(vec3(0,this.main_camera.widths[1],0)), this.main_camera.widths, 0.01, 0.75);
+        const is_ceiled = ceil_collide.wall != null;
 
         if(this.main_camera.is_grounded && this.main_camera.velocity[1] <= 0){
             // were already on the floor or landed on the floor
-            this.main_camera.pos[1] = floor_collide.pos[1] + this.main_camera.height_on_bottom;
+            this.main_camera.pos[1] = floor_collide.wall.pos[1] + this.main_camera.height_on_bottom;
             this.main_camera.velocity[1] = 0;
         }else if(is_ceiled && this.main_camera.velocity[1] > 0){
             // landed on the ceiling
-            this.main_camera.pos[1] = ceil_collide.pos[1] - this.main_camera.height_on_top;
+            this.main_camera.pos[1] = ceil_collide.wall.pos[1] - this.main_camera.height_on_top;
             this.main_camera.velocity[1] = 0;
         }else{
             // otherwise go down
@@ -445,9 +457,9 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             const positive_x_collide = this.get_player_side_collision(vec3(1,0,0), 
             col_cent.plus(vec3(this.main_camera.widths[0],0,0)), this.main_camera.widths);
 
-            if(positive_x_collide != null && Math.sign(positive_x_collide.normal[0]) < 0){
+            if(positive_x_collide.wall != null && Math.sign(positive_x_collide.wall.normal[0]) < 0){
                 // collision with wall
-                this.main_camera.pos[0] = positive_x_collide.pos[0] - this.main_camera.side_width;
+                this.main_camera.pos[0] = positive_x_collide.wall.pos[0] - this.main_camera.side_width;
                 this.main_camera.velocity[0] = 0;
                 col_cent = this.main_camera.pos.plus(this.main_camera.collision_center);//update for z
             }
@@ -456,9 +468,9 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             const negative_x_collide = this.get_player_side_collision(vec3(-1,0,0), 
                 col_cent.plus(vec3(-this.main_camera.widths[0],0,0)), this.main_camera.widths);
 
-            if(negative_x_collide != null && Math.sign(negative_x_collide.normal[0]) > 0){
+            if(negative_x_collide.wall != null && Math.sign(negative_x_collide.wall.normal[0]) > 0){
                 // collision with wall
-                this.main_camera.pos[0] = negative_x_collide.pos[0] + this.main_camera.side_width;
+                this.main_camera.pos[0] = negative_x_collide.wall.pos[0] + this.main_camera.side_width;
                 this.main_camera.velocity[0] = 0;
                 col_cent = this.main_camera.pos.plus(this.main_camera.collision_center); //update for z
             }
@@ -470,9 +482,9 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             const positive_z_collide = this.get_player_side_collision(vec3(0,0,1), 
                 col_cent.plus(vec3(0,0,this.main_camera.widths[2])), this.main_camera.widths);
 
-            if(positive_z_collide != null && Math.sign(positive_z_collide.normal[2]) < 0){
+            if(positive_z_collide.wall != null && Math.sign(positive_z_collide.wall.normal[2]) < 0){
                 // collision with wall
-                this.main_camera.pos[2] = positive_z_collide.pos[2] - this.main_camera.side_width;
+                this.main_camera.pos[2] = positive_z_collide.wall.pos[2] - this.main_camera.side_width;
                 this.main_camera.velocity[2] = 0;
             }
         }else if(this.main_camera.velocity[2] < 0){
@@ -480,9 +492,9 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             const negative_z_collide = this.get_player_side_collision(vec3(0,0,-1), 
                 col_cent.plus(vec3(0,0,-this.main_camera.widths[2])), this.main_camera.widths);
 
-            if(negative_z_collide != null && Math.sign(negative_z_collide.normal[2]) > 0){
+            if(negative_z_collide.wall != null && Math.sign(negative_z_collide.wall.normal[2]) > 0){
                 // collision with wall
-                this.main_camera.pos[2] = negative_z_collide.pos[2] + this.main_camera.side_width;
+                this.main_camera.pos[2] = negative_z_collide.wall.pos[2] + this.main_camera.side_width;
                 this.main_camera.velocity[2] = 0;
             }
         }
@@ -803,8 +815,6 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
 
 class Textured_Portal extends Shader {
-    // This is a Shader using Phong_Shader as template
-    // TODO: Modify the glsl coder here to create a Gouraud Shader (Planet 2)
 
     constructor() {
         super();
@@ -869,10 +879,8 @@ class Textured_Portal extends Shader {
     }
 
     send_gpu_state(gl, gpu, gpu_state, model_transform) {
-        // send_gpu_state():  Send the state of our whole drawing context to the GPU.
         const O = vec4(0, 0, 0, 1), camera_center = gpu_state.camera_transform.times(O).to3();
         gl.uniform3fv(gpu.camera_center, camera_center);
-        // Use the squared scale trick from "Eric's blog" instead of inverse transpose matrix:
         const squared_scale = model_transform.reduce(
             (acc, r) => {
                 return acc.plus(vec4(...r).times_pairwise(r))
@@ -885,13 +893,7 @@ class Textured_Portal extends Shader {
     }
 
     update_GPU(context, gpu_addresses, gpu_state, model_transform, material) {
-        // update_GPU(): Define how to synchronize our JavaScript's variables to the GPU's.  This is where the shader
-        // recieves ALL of its inputs.  Every value the GPU wants is divided into two categories:  Values that belong
-        // to individual objects being drawn (which we call "Material") and values belonging to the whole scene or
-        // program (which we call the "Program_State").  Send both a material and a program state to the shaders
-        // within this function, one data field at a time, to fully initialize the shader for a draw.
 
-        // Fill in any missing fields in the Material object with custom defaults for this shader:
         material = Object.assign({}, {}, material);
         context.uniform1f(gpu_addresses.screen_height, material.screen_height);
         context.uniform1f(gpu_addresses.screen_width, material.screen_width);
@@ -903,9 +905,7 @@ class Textured_Portal extends Shader {
         this.send_gpu_state(context, gpu_addresses, gpu_state, model_transform);
 
         if (material.texture && material.texture.ready) {
-            // Select texture unit 0 for the fragment shader Sampler2D uniform called "texture":
             context.uniform1i(gpu_addresses.texture, 0);
-            // For this draw, use the texture image from correct the GPU buffer:
             material.texture.activate(context);
         }
     }
