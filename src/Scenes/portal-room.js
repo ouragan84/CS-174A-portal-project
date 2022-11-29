@@ -24,6 +24,18 @@ export class Portal_Room extends Scene {                   // **Scene_To_Texture
         const screen_height = 600;
         const screen_width = 1080;
 
+        this.view_settings = {
+            screen_height:screen_height,
+            screen_width:screen_width,
+            half_angle:45,
+            near:0.01,
+            far:100
+        }
+
+        this.view_settings.projection_matrix = Mat4.perspective(Math.PI / 180 * this.view_settings.half_angle, screen_width / screen_height,  
+        this.view_settings.near,  this.view_settings.far);
+        this.view_settings.inv_projection_matrix = Mat4.inverse(this.view_settings.projection_matrix);
+
         this.scratchpad_blue_portal = document.createElement('canvas');
         // A hidden canvas for re-sizing the real canvas to be square:
         this.scratchpad_context_blue_portal = this.scratchpad_blue_portal.getContext('2d');
@@ -71,7 +83,7 @@ export class Portal_Room extends Scene {                   // **Scene_To_Texture
         this.portal_blue = {
             pos: vec3(-5, 0, 10),
             scale: vec3(1, 1, 1),
-            normal: vec3(0, 0, -1),
+            normal: vec3(.6, 0, -.8),
             top: vec3(0, 1, 0),
             color_behind: hex_color("#0080FF"),
             screen_transform: null,
@@ -154,12 +166,17 @@ export class Portal_Room extends Scene {                   // **Scene_To_Texture
         const k_ = k.normalized();
 
         return Matrix.of(i_.to4(false), j_.to4(false), k_.to4(false), [0, 0, 0, 1]).times( Mat4.translation(-origin[0], -origin[1], -origin[2]) );
+        // return Mat4.translation(-origin[0], -origin[1], -origin[2]).times(Matrix.of(i_.to4(false), j_.to4(false), k_.to4(false), [0, 0, 0, 1]));
+    
     }
 
     compute_portal_transform(portal){
         portal.screen_transform =  
             this.to_basis( portal.top.cross(portal.normal), portal.top, portal.normal, portal.pos)
             .times(Mat4.scale(portal.scale[0], portal.scale[1], portal.scale[2]))
+
+        portal.inv_screen_transform = Mat4.inverse(portal.screen_transform);
+
     }
     
     clear_buffer(context, texture){
@@ -205,10 +222,20 @@ export class Portal_Room extends Scene {                   // **Scene_To_Texture
             .times(Mat4.translation(4, -2, 8))
             .times(Mat4.scale(.5,.5,this.get_cosine_interpolation(-.5, .5, .8, t, 0))), 
             this.materials.phong.override({color: hex_color("#f76d28")}));
+
+        this.shapes.box.draw(context, program_state, Mat4.identity()
+            .times(Mat4.translation(-5,0,10))
+            .times(Mat4.scale(.3,.3,.3)), 
+            this.materials.phong.override({color: hex_color("#2222FF")}));
+
+        this.shapes.box.draw(context, program_state, Mat4.identity()
+            .times(Mat4.translation(0, 0, 0))
+            .times(Mat4.scale(.3,.3,.3)), 
+            this.materials.phong.override({color: hex_color("#00FFFF")}));
     }
 
     draw_portal(context, program_state, portal, material, draw_filled=false){
-        this.shapes.circle.draw(context, program_state, portal.screen_transform, material.override({is_filled : (draw_filled?1:0)}));
+        this.shapes.circle.draw(context, program_state, portal.inv_screen_transform, material.override({is_filled : (draw_filled?1:0)}));
     }
 
     draw_player(context, program_state){
@@ -239,6 +266,54 @@ export class Portal_Room extends Scene {                   // **Scene_To_Texture
         this.main_camera.transform = Mat4.look_at(this.main_camera.pos, look_at_point, this.main_camera.top);
     }
 
+    get_oblique_projection_matrix(clip_normal_world, clip_point_world, camera_transform){
+        let oblique_proj_matrix = this.view_settings.projection_matrix.map(function(arr) {
+            return arr.slice();
+        });
+
+        const clip_normal = camera_transform.times(clip_normal_world.to4(false)).to3();
+        const clip_point = camera_transform.times(clip_point_world.to4(true)).to3();
+
+        const d = clip_normal.dot(clip_point);
+
+        const clip_plane = clip_normal.to4(true); clip_plane[3] = 
+        Math.abs(d);
+
+        console.log(clip_normal, clip_point, d, clip_plane);
+
+        console.log("----------");
+
+        // const q = this.view_settings.inv_projection_matrix.times( vec4( Math.sign(clip_plane[0]), Math.sign(clip_plane[1]), 1.0, 1.0) );
+
+        // const c = clip_plane.times(2.0 / (clip_plane.dot(q)));
+
+        // // third row = clip plane - fourth row
+        // oblique_proj_matrix[0][2] = c[0] - oblique_proj_matrix[0][3];
+        // oblique_proj_matrix[1][2] = c[1] - oblique_proj_matrix[1][3];
+        // oblique_proj_matrix[2][2] = c[2] - oblique_proj_matrix[2][3];
+        // oblique_proj_matrix[3][2] = c[3] - oblique_proj_matrix[3][3];
+
+        // return oblique_proj_matrix;
+
+        let q = vec4();
+
+        q[0] = (Math.sign(clip_plane[0]) + oblique_proj_matrix[2][0]) / oblique_proj_matrix[0][0];
+        q[1] = (Math.sign(clip_plane[1]) + oblique_proj_matrix[2][1]) / oblique_proj_matrix[1][1];
+        q[2] = -1.0;
+        q[3] = (1.0 + oblique_proj_matrix[2][2]) / oblique_proj_matrix[14];
+        
+        // Calculate the scaled plane vector
+        let c = clip_plane.times(2.0 / clip_plane.dot(q));
+        
+        // Replace the third row of the projection matrix
+        oblique_proj_matrix[0][2] = c[0];
+        oblique_proj_matrix[1][2] = c[1];
+        oblique_proj_matrix[2][2] = c[2] + 1.0;
+        oblique_proj_matrix[3][2] = c[3];
+
+        return oblique_proj_matrix;
+    }
+
     update_portal_camera(portal, other, camera, iteration=1){
         // const trans = this.to_basis( other.top.cross(other.normal), other.top, other.normal, other.pos)
         //     .times(Mat4.inverse(this.to_basis( portal.top.cross(portal.normal.times(-1)), portal.top, portal.normal.times(-1), portal.pos)));
@@ -265,38 +340,29 @@ export class Portal_Room extends Scene {                   // **Scene_To_Texture
 
     draw_orange_portal(context, program_state, t){
 
-        if(this.portal_orange.normal.dot(this.main_camera.look_dir) > 0){
-            this.reset_texture(this.scratchpad_orange_portal, this.scratchpad_context_orange_portal, this.texture_orange_portal, this.result_img_orange_portal);
-            return;
-        }
 
-
-
-
-        // this.update_portal_camera(this.portal_blue, this.portal_orange, this.portal_blue.camera, 2);
-        
-        // RENDER FROM BLUE PORTAL PERSPECTIVE, PASTE ONTO ORANGE PORTAL
-
-        // program_state.set_camera(this.portal_blue.camera.transform);
-        // program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
-
-        // this.draw_visible_scene(context, program_state, t);
-        // this.draw_player(context, program_state);
-        // this.draw_portal(context, program_state, this.portal_orange, this.materials.orange_portal, true);
-
-        // this.update_texture(context, this.scratchpad_orange_portal, this.scratchpad_context_orange_portal, this.texture_orange_portal, this.result_img_orange_portal);
-
-        // this.clear_buffer(context, this.texture_orange_portal);
-
-
-
+        // TODO update this: behind and view angle
+        // if(this.portal_orange.normal.dot(this.main_camera.look_dir) > 0){
+        //     this.reset_texture(this.scratchpad_orange_portal, this.scratchpad_context_orange_portal, this.texture_orange_portal, this.result_img_orange_portal);
+        //     return;
+        // }
 
         this.update_portal_camera(this.portal_blue, this.portal_orange, this.portal_blue.camera, 1);
 
         // RENDER FROM BLUE PORTAL PERSPECTIVE, PASTE ONTO ORANGE PORTAL
 
         program_state.set_camera(this.portal_blue.camera.transform);
-        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
+        // program_state.projection_transform = this.get_oblique_projection_matrix(
+        //     this.portal_blue.normal, this.portal_blue.pos, this.to_basis( this.portal_blue.camera.look_dir.cross(this.portal_blue.camera.top), this.portal_blue.camera.top, this.portal_blue.camera.look_dir, this.portal_blue.camera.pos) );
+
+        program_state.projection_transform = this.get_oblique_projection_matrix(
+            this.portal_blue.normal, this.portal_blue.pos, 
+            this.to_basis( this.portal_blue.camera.top.cross(this.portal_blue.camera.look_dir), 
+            this.portal_blue.camera.top, this.portal_blue.camera.look_dir, this.portal_blue.camera.pos) );
+    
+
+        // program_state.projection_transform = this.get_oblique_projection_matrix(
+        //     this.portal_blue.normal, this.portal_blue.pos, Mat4.inverse(this.portal_blue.basis_transform) );
 
         this.draw_visible_scene(context, program_state, t);
         this.draw_player(context, program_state);
@@ -319,7 +385,7 @@ export class Portal_Room extends Scene {                   // **Scene_To_Texture
         // RENDER FROM ORANGE PORTAL PERSPECTIVE, PASTE ONTO BLUE PORTAL
 
         program_state.set_camera(this.portal_orange.camera.transform);
-        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
+        program_state.projection_transform = this.view_settings.projection_matrix;
 
         this.draw_visible_scene(context, program_state, t);
         this.draw_player(context, program_state);
@@ -354,7 +420,7 @@ export class Portal_Room extends Scene {                   // **Scene_To_Texture
         //  RENDER FROM MAIN CAMERA
 
         program_state.set_camera(this.main_camera.transform);
-        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, .5, 500);
+        program_state.projection_transform = this.view_settings.projection_matrix;
 
         this.draw_visible_scene(context, program_state, t);
         this.draw_portal(context, program_state, this.portal_blue, this.materials.blue_portal);
