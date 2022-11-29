@@ -141,6 +141,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
         this.velocity_y = 0;
         this.mouse = {"from_center": vec(0,0)};
+        this.prev_center = null;
         
         this.projectiles = [];
         // this.collider = {intersect_test: Body.intersect_cube, points: new defs.Subdivision_Sphere(4), leeway: .3}
@@ -855,9 +856,14 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         program_state.lights = [new Light(vec4(5, 5, 5, 1), color(1, 1, 1, 1), 10000) /*, ...portal_lights*/];
 
         let degrees_per_frame = 0.3 * dt;
-        if (this.mouse.from_center !== undefined && !(this.mouse.from_center[0] === 0 && this.mouse.from_center[1] === 0)) {
-            this.main_camera.rot_input[0] = this.mouse.from_center[0] * degrees_per_frame * -1;
-            this.main_camera.rot_input[1] = this.mouse.from_center[1] * degrees_per_frame * -1;
+        if(this.prev_center !== null && this.prev_center[0] === this.mouse.from_center[0] && this.prev_center[1] === this.mouse.from_center[1]) {
+            this.main_camera.rot_input[0] = 0;
+            this.main_camera.rot_input[1] = 0;
+        } else if (this.mouse.from_center !== undefined && !(this.mouse.from_center[0] === 0 && this.mouse.from_center[1] === 0)) {
+            this.main_camera.rot_input[0] = Math.max(this.mouse.from_center[0] * degrees_per_frame * -1, -.6);
+            this.main_camera.rot_input[1] = Math.max(this.mouse.from_center[1] * degrees_per_frame * -1, -.6);
+            console.log(this.prev_center, this.mouse.from_center)
+            this.prev_center = this.mouse.from_center;
         }
 
         // this.update_y_pos(dt)
@@ -871,7 +877,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         program_state.set_camera(this.main_camera.transform);
         program_state.projection_transform = this.view_options.proj_mat;
 
-            // this.shapes.box.draw(context, program_state, this.poop,
+
+        // this.shapes.box.draw(context, program_state, this.poop,
             // this.materials.phong.override({color: hex_color("#906000")}));
 
         this.draw_visible_scene(context, program_state, t);
