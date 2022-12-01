@@ -82,7 +82,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             gravity_factor: 9.8,
             capped_falling_speed: 7.5,
             jumping_speed: 7.5,
-            portal_penetrating: null,
+            portal_penetrating: vec3(0,0,0),
 
             height_on_bottom: 1.0,
             height_on_top: 0.3,
@@ -98,8 +98,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
         this.portal_blue = {
             pos: vec3(5, 1, 0.1),
-            scale: vec3(1, 1, .1),
-            disp: vec3(0, 0, -.04),
+            scale: vec3(1, 1, .01),
+            disp: vec3(0, 0, 0.01),
             normal: vec3(0, 0, 1),
             top: vec3(0, 1, 0),
             color_behind: hex_color("#0080FF"),
@@ -123,8 +123,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
         this.portal_orange = {
             pos: vec3(0.1, 1, 5),
-            scale: vec3(1, 1, .1),
-            disp: vec3(0, 0, -.049),
+            scale: vec3(1, 1, .01),
+            disp: vec3(0, 0, .01),
             normal: vec3(1, 0, 0),
             top: vec3(0, 1, 0),
             color_behind: hex_color("#FF8000"),
@@ -369,12 +369,12 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             const collide = this.level.collision_point_to_point(point.minus(dir.times(err_in)), point.plus(dir.times(err_out)));
            
             if(collide == null) {is_colliding_with_single_portal = false; continue;}
-            if(candidate == null) candidate = collide;
+            if(candidate == null || collide.portal_on.length == 0) candidate = collide;
             if(!collide.portal_on.length > 0 || (candidate.portal_on !== collide.portal_on)) 
                 is_colliding_with_single_portal = false;
         }
 
-        return {wall: candidate, is_portal: (is_colliding_with_single_portal && candidate.portal_on.length > 0)};
+        return {wall: candidate, is_portal: (is_colliding_with_single_portal && candidate.portal_on.length > 0), is_potential: !is_colliding_with_single_portal && candidate != null && candidate.portal_on.length > 0};
         
     }
 
@@ -449,22 +449,28 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
     }
 
     teleport_from_portal(portal_from, portal_to){
-        // const trans_1 = this.to_basis( portal_from.top.cross(portal_from.normal), portal_from.top, portal_from.normal, portal_from.pos);
-        // const trans_2 = this.to_basis( portal_to.top.cross(portal_to.normal), portal_to.top, portal_to.normal, portal_to.pos);
 
-        // console.log("initial:", this.main_camera);
+        const teleportation = Mat4.inverse(this.to_basis(portal_to.normal.cross(portal_to.top), portal_to.top, portal_to.normal.times(-1), portal_to.pos))
+            .times(this.to_basis(portal_from.top.cross(portal_from.normal), portal_from.top, portal_from.normal, portal_from.pos));
 
-        // this.main_camera.look_dir = trans_1.times(this.main_camera.look_dir.to4(false)).to3();
-        // this.main_camera.top = trans_1.times(this.main_camera.top.to4(false)).to3();
-        // this.main_camera.pos = trans_1.times(trans_1).times(this.main_camera.pos.to4(true)).to3();
-        // this.main_camera.velocity = trans_1.times(trans_1).times(this.main_camera.velocity.to4(false)).to3();
+        console.log("initial:", this.main_camera);
+
+        const look = teleportation.times(this.main_camera.look_dir.to4(false)).to3();
+        this.main_camera.top = teleportation.times(this.main_camera.top.to4(false)).to3();
+        this.main_camera.pos = teleportation.times(this.main_camera.pos.to4(true)).to3();
+        this.main_camera.velocity = teleportation.times(this.main_camera.velocity.to4(false)).to3();
+
+        this.main_camera.rot = vec3( Math.atan( look[0]/look[2] ) + (look[2]>0? Math.PI:0) , Math.atan( look[1] / Math.sqrt(look[0]**2 + look[2]**2 ) ) , 0);
     
-        // console.log("final:", this.main_camera);
+        console.log("final:", this.main_camera);
     }
 
     handle_player_collision(){
 
         let col_cent = this.main_camera.pos.plus(this.main_camera.collision_center);
+        
+        // ew
+        // instead check collision in every dir, then for each check if portal potential, then check collision of other sides first, then update pos and look into teleport
         
         if(this.main_camera.velocity[0] > 0){
 
@@ -489,6 +495,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                     else
                         this.teleport_from_portal(this.portal_orange, this.portal_blue);
 
+                }else if(positive_x_collide.is_potential){
+                    do_x_pos = positive_x_collide;
                 }else{
                     this.main_camera.pos[0] = positive_x_collide.wall.pos[0] - this.main_camera.side_width;
                     this.main_camera.velocity[0] = 0;
@@ -503,9 +511,30 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
             if(negative_x_collide.wall != null && Math.sign(negative_x_collide.wall.normal[0]) > 0){
                 // collision with wall
-                this.main_camera.pos[0] = negative_x_collide.wall.pos[0] + this.main_camera.side_width;
-                this.main_camera.velocity[0] = 0;
-                col_cent = this.main_camera.pos.plus(this.main_camera.collision_center); //update for z
+                
+
+                if(negative_x_collide.is_portal){
+                    // if(this.main_camera.pos[1] - this.main_camera.widths[1] < negative_x_collide.wall.pos[1]-1)
+                    //     this.main_camera.pos[1] = negative_x_collide.wall.pos[1] - this.main_camera.widths[1];
+                    // if(this.main_camera.pos[1] + this.main_camera.widths[1] > negative_x_collide.wall.pos[1]+1)
+                    //     this.main_camera.pos[1] = negative_x_collide.wall.pos[1] + this.main_camera.widths[1];
+                    // if(this.main_camera.pos[2] - this.main_camera.widths[2] < negative_x_collide.wall.pos[2]-1)
+                    //     this.main_camera.pos[2] = negative_x_collide.wall.pos[2] - this.main_camera.widths[2];
+                    // if(this.main_camera.pos[2] + this.main_camera.widths[2] > negative_x_collide.wall.pos[2]+1)
+                    //     this.main_camera.pos[2] = negative_x_collide.wall.pos[2] + this.main_camera.widths[2];
+
+                    if(negative_x_collide.wall.portal_on == "blue")
+                        this.teleport_from_portal(this.portal_blue, this.portal_orange);
+                    else
+                        this.teleport_from_portal(this.portal_orange, this.portal_blue);
+
+                }else if(negative_x_collide.is_potential){
+                    do_x_neg = negative_x_collide;
+                }else{
+                    this.main_camera.pos[0] = negative_x_collide.wall.pos[0] + this.main_camera.side_width;
+                    this.main_camera.velocity[0] = 0;
+                    col_cent = this.main_camera.pos.plus(this.main_camera.collision_center); //update for z
+                }
             }
         }
 
@@ -517,8 +546,26 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
             if(positive_z_collide.wall != null && Math.sign(positive_z_collide.wall.normal[2]) < 0){
                 // collision with wall
-                this.main_camera.pos[2] = positive_z_collide.wall.pos[2] - this.main_camera.side_width;
-                this.main_camera.velocity[2] = 0;
+
+                if(positive_z_collide.is_portal){
+                    // if(this.main_camera.pos[1] - this.main_camera.widths[1] < positive_z_collide.wall.pos[1]-1)
+                    //     this.main_camera.pos[1] = positive_z_collide.wall.pos[1] - this.main_camera.widths[1];
+                    // if(this.main_camera.pos[1] + this.main_camera.widths[1] > positive_z_collide.wall.pos[1]+1)
+                    //     this.main_camera.pos[1] = positive_z_collide.wall.pos[1] + this.main_camera.widths[1];
+                    // if(this.main_camera.pos[0] - this.main_camera.widths[0] < positive_z_collide.wall.pos[0]-1)
+                    //     this.main_camera.pos[0] = positive_z_collide.wall.pos[0] - this.main_camera.widths[0];
+                    // if(this.main_camera.pos[0] + this.main_camera.widths[0] > positive_z_collide.wall.pos[0]+1)
+                    //     this.main_camera.pos[0] = positive_z_collide.wall.pos[0] + this.main_camera.widths[0];
+
+                    if(positive_z_collide.wall.portal_on == "blue")
+                        this.teleport_from_portal(this.portal_blue, this.portal_orange);
+                    else
+                        this.teleport_from_portal(this.portal_orange, this.portal_blue);
+
+                }else{
+                    this.main_camera.pos[2] = positive_z_collide.wall.pos[2] - this.main_camera.side_width - 0.01;
+                    this.main_camera.velocity[2] = 0;
+                }
             }
         }else if(this.main_camera.velocity[2] < 0){
 
@@ -527,11 +574,28 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
             if(negative_z_collide.wall != null && Math.sign(negative_z_collide.wall.normal[2]) > 0){
                 // collision with wall
-                this.main_camera.pos[2] = negative_z_collide.wall.pos[2] + this.main_camera.side_width;
-                this.main_camera.velocity[2] = 0;
+
+                if(negative_z_collide.is_portal){
+                    // if(this.main_camera.pos[1] - this.main_camera.widths[1] < negative_z_collide.wall.pos[1]-1)
+                    //     this.main_camera.pos[1] = negative_z_collide.wall.pos[1] - this.main_camera.widths[1];
+                    // if(this.main_camera.pos[1] + this.main_camera.widths[1] > negative_z_collide.wall.pos[1]+1)
+                    //     this.main_camera.pos[1] = negative_z_collide.wall.pos[1] + this.main_camera.widths[1];
+                    // if(this.main_camera.pos[0] - this.main_camera.widths[0] < negative_z_collide.wall.pos[0]-1)
+                    //     this.main_camera.pos[0] = negative_z_collide.wall.pos[0] - this.main_camera.widths[0];
+                    // if(this.main_camera.pos[0] + this.main_camera.widths[0] > negative_z_collide.wall.pos[0]+1)
+                    //     this.main_camera.pos[0] = negative_z_collide.wall.pos[0] + this.main_camera.widths[0];
+
+                    if(negative_z_collide.wall.portal_on == "blue")
+                        this.teleport_from_portal(this.portal_blue, this.portal_orange);
+                    else
+                        this.teleport_from_portal(this.portal_orange, this.portal_blue);
+
+                }else{
+                    this.main_camera.pos[2] = negative_z_collide.wall.pos[2] + this.main_camera.side_width + 0.01;
+                    this.main_camera.velocity[2] = 0;
+                }
             }
         }
-
     }
 
     update_main_camera(dt){
@@ -642,7 +706,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             this.update_texture(this.textures.orange_portal_secondary, context);
 
             this.clear_buffer(context, this.textures.orange_portal_secondary);
-        }
+        }// asheley 1:00 edgar 3:00
 
 
 
