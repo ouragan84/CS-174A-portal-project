@@ -489,7 +489,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         const teleportation = Mat4.inverse(this.to_basis(portal_to.normal.cross(portal_to.top), portal_to.top, portal_to.normal.times(-1), portal_to.pos))
             .times(this.to_basis(portal_from.top.cross(portal_from.normal), portal_from.top, portal_from.normal, portal_from.pos));
 
-        console.log("initial:", this.main_camera);
+        // console.log("initial:", this.main_camera);
 
         const look = teleportation.times(this.main_camera.look_dir.to4(false)).to3();
         this.main_camera.top = teleportation.times(this.main_camera.top.to4(false)).to3();
@@ -498,7 +498,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
         this.main_camera.rot = vec3( Math.atan( look[0]/look[2] ) + (look[2]>0? Math.PI:0) , Math.atan( look[1] / Math.sqrt(look[0]**2 + look[2]**2 ) ) , 0);
     
-        console.log("final:", this.main_camera);
+        // console.log("final:", this.main_camera);
     }
 
     handle_player_collision(){
