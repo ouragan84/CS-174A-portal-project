@@ -1,7 +1,7 @@
 import {defs, tiny} from '../lib/common.js';
 import {Level} from "./level.js";
 // Pull these names into this module's scope for convenience:
-const {vec3, vec4, color, hex_color, Matrix, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
+const {vec, vec3, vec4, color, hex_color, Matrix, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
 const {Phong_Shader, Fake_Bump_Map, Tex} = defs;
 
 export class Game extends Scene {                   // **Scene_To_Texture_Demo** is a crude way of doing multi-pass rendering.
@@ -147,6 +147,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         }
 
         this.velocity_y = 0;
+        this.mouse = {"from_center": vec(0,0)};
+        this.prev_center = null;
         
         this.projectiles = [];
         // this.collider = {intersect_test: Body.intersect_cube, points: new defs.Subdivision_Sphere(4), leeway: .3}
@@ -237,6 +239,40 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.new_line();
 
         this.key_triggered_button("Draw Secondary Portals", ["p"], () => this.draw_secondary_portals ^= true);
+
+        const canvas = document.getElementById("main-canvas");
+
+        // setting up pointer lock for mouse control
+        canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+        document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
+
+        canvas.onclick = function(){
+            canvas.requestPointerLock();
+        };
+
+        let mouse_position = function( e ) {
+            return vec( e.movementX, e.movementY );
+        };
+
+        let changeCallback =  function() {
+            if (document.pointerLockElement === canvas || document.mozPointerLockElement === canvas) {
+                console.log('The pointer lock status is now locked');
+                canvas.addEventListener("mousemove", (e) => {
+                    this.mouse.from_center = mouse_position(e);
+                    //console.log("mouse position: ", this.mouse.from_center)
+                }, false)
+
+            } else {
+                console.log('The pointer lock status is now unlocked');
+                canvas.addEventListener("mouseout", (e) => {
+                    this.mouse.from_center = mouse_position(e);
+                }, false)
+            };
+        }
+
+        document.addEventListener('pointerlockchange', changeCallback.bind(this), false);
+        document.addEventListener('mozpointerlockchange', changeCallback.bind(this),false);
+
 
     }
 
@@ -889,6 +925,17 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         // })
         program_state.lights = [new Light(vec4(5, 5, 5, 1), color(1, 1, 1, 1), 10000) /*, ...portal_lights*/];
 
+        let degrees_per_frame = 0.3 * dt;
+        if(this.prev_center !== null && this.prev_center[0] === this.mouse.from_center[0] && this.prev_center[1] === this.mouse.from_center[1]) {
+            this.main_camera.rot_input[0] = 0;
+            this.main_camera.rot_input[1] = 0;
+        } else if (this.mouse.from_center !== undefined && !(this.mouse.from_center[0] === 0 && this.mouse.from_center[1] === 0)) {
+            this.main_camera.rot_input[0] = Math.max(this.mouse.from_center[0] * degrees_per_frame * -1, -.6);
+            this.main_camera.rot_input[1] = Math.max(this.mouse.from_center[1] * degrees_per_frame * -1, -.6);
+            // console.log(this.prev_center, this.mouse.from_center)
+            this.prev_center = this.mouse.from_center;
+        }
+
         // this.update_y_pos(dt)
         this.update_main_camera(dt);
         this.update_projectiles(dt);
@@ -900,7 +947,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         program_state.set_camera(this.main_camera.transform);
         program_state.projection_transform = this.view_options.proj_mat;
 
-            // this.shapes.box.draw(context, program_state, this.poop,
+
+        // this.shapes.box.draw(context, program_state, this.poop,
             // this.materials.phong.override({color: hex_color("#906000")}));
 
         this.draw_visible_scene(context, program_state, t);
