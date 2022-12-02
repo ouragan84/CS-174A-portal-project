@@ -86,7 +86,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
             height_on_bottom: 1.0,
             height_on_top: 0.3,
-            side_width: 0.2,
+            side_width: 0.3,
             collision_center: null,
             widths: null,
             total_height: null
@@ -495,8 +495,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                     else
                         this.teleport_from_portal(this.portal_orange, this.portal_blue);
 
-                }else if(positive_x_collide.is_potential){
-                    do_x_pos = positive_x_collide;
+                // }else if(positive_x_collide.is_potential){
+                //     do_x_pos = positive_x_collide;
                 }else{
                     this.main_camera.pos[0] = positive_x_collide.wall.pos[0] - this.main_camera.side_width;
                     this.main_camera.velocity[0] = 0;
@@ -528,8 +528,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                     else
                         this.teleport_from_portal(this.portal_orange, this.portal_blue);
 
-                }else if(negative_x_collide.is_potential){
-                    do_x_neg = negative_x_collide;
+                // }else if(negative_x_collide.is_potential){
+                //     do_x_neg = negative_x_collide;
                 }else{
                     this.main_camera.pos[0] = negative_x_collide.wall.pos[0] + this.main_camera.side_width;
                     this.main_camera.velocity[0] = 0;
