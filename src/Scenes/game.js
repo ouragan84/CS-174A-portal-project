@@ -147,8 +147,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         }
 
         this.velocity_y = 0;
-        this.mouse = {"from_center": vec(0,0)};
-        this.prev_center = null;
+        this.mouse = {movement: vec(0,0)};
+        // this.prev_center = null;
         
         this.projectiles = [];
         // this.collider = {intersect_test: Body.intersect_cube, points: new defs.Subdivision_Sphere(4), leeway: .3}
@@ -213,8 +213,10 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             {style: "width:200px; height:" + 200 * this.aspect_ratio + "px"}));
 
         this.new_line();
-        this.key_triggered_button("Left Click (blue)", ["["], () => this.shoot_projectile("blue"))
-        this.key_triggered_button("Right Click (orange)", ["]"], () => this.shoot_projectile("orange"))
+        // this.key_triggered_button("Left Click (blue)", ["["], () => this.shoot_projectile("blue"))
+        // this.key_triggered_button("Right Click (orange)", ["]"], () => this.shoot_projectile("orange"))
+
+        this.control_panel.innerHTML += "<b> Left Click for Blue Portal.<br> Right Click / CTR+Click for Orange Portal <br> ESC to exit locked mouse mode <br> </b>";
 
         this.new_line();
 
@@ -228,12 +230,12 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.new_line();
         //this.key_triggered_button("Down", ["z"], () => this.main_camera.pos_dir[1] = -1, undefined, () => this.main_camera.pos_dir[1] = 0);
 
-        this.new_line();
-        this.key_triggered_button("Look Left", ["q"], () => this.rotate_player(0,1), undefined, () => this.rotate_player(0,0));
-        this.key_triggered_button("Look Right", ["e"], () => this.rotate_player(0,-1), undefined, () => this.rotate_player(0,0));
-        this.new_line();
-        this.key_triggered_button("Look Up", ["r"], () => this.rotate_player(1,1), undefined, () => this.rotate_player(1,0));
-        this.key_triggered_button("Look Down", ["f"], () => this.rotate_player(1,-1), undefined, () => this.rotate_player(1,0));
+        // this.new_line();
+        // this.key_triggered_button("Look Left", ["q"], () => this.rotate_player(0,1), undefined, () => this.rotate_player(0,0));
+        // this.key_triggered_button("Look Right", ["e"], () => this.rotate_player(0,-1), undefined, () => this.rotate_player(0,0));
+        // this.new_line();
+        // this.key_triggered_button("Look Up", ["r"], () => this.rotate_player(1,1), undefined, () => this.rotate_player(1,0));
+        // this.key_triggered_button("Look Down", ["f"], () => this.rotate_player(1,-1), undefined, () => this.rotate_player(1,0));
 
         this.new_line();
         this.new_line();
@@ -246,26 +248,35 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
         document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
 
-        canvas.onclick = function(){
+        canvas.onclick = function(e){
             canvas.requestPointerLock();
         };
 
-        let mouse_position = function( e ) {
-            return vec( e.movementX, e.movementY );
-        };
+        // let mouse_position = function( e ) {
+        //     return ;
+        // };
 
         let changeCallback =  function() {
+
             if (document.pointerLockElement === canvas || document.mozPointerLockElement === canvas) {
                 console.log('The pointer lock status is now locked');
                 canvas.addEventListener("mousemove", (e) => {
-                    this.mouse.from_center = mouse_position(e);
+                    // this.mouse.from_center = mouse_position(e);
+                    this.mouse.movement = vec( e.movementX, e.movementY );
                     //console.log("mouse position: ", this.mouse.from_center)
                 }, false)
+
+                canvas.addEventListener("mousedown", e => {
+                    if(e.button == 2 || e.shiftKey || e.ctrlKey || e.altKey)
+                        this.shoot_projectile("orange");
+                    else
+                        this.shoot_projectile("blue");
+                })
 
             } else {
                 console.log('The pointer lock status is now unlocked');
                 canvas.addEventListener("mouseout", (e) => {
-                    this.mouse.from_center = mouse_position(e);
+                    this.mouse.movement = vec( 0,0 );
                 }, false)
             };
         }
@@ -359,6 +370,25 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
             this.materials.phong.override({color: hex_color("#e3ac88")}));
     }
 
+    draw_cursor(context, program_state){
+        // body
+        this.shapes.square.draw(context, program_state,
+            Mat4.translation(this.main_camera.pos[0], this.main_camera.pos[1], this.main_camera.pos[2])
+                .times(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0))
+                .times(Mat4.rotation(this.main_camera.rot[1], 1, 0, 0))
+                .times(Mat4.translation(0,0,-.006))
+                .times(Mat4.scale(.00005, .00001, .00001)),
+            this.materials.phong.override({color: hex_color("#000000")}));
+
+        this.shapes.square.draw(context, program_state,
+            Mat4.translation(this.main_camera.pos[0], this.main_camera.pos[1], this.main_camera.pos[2])
+                .times(Mat4.rotation(this.main_camera.rot[0], 0, 1, 0))
+                .times(Mat4.rotation(this.main_camera.rot[1], 1, 0, 0))
+                .times(Mat4.translation(0,0,-.006))
+                .times(Mat4.scale(.00001, .00005, .00001)),
+            this.materials.phong.override({color: hex_color("#000000")}));
+    }
+
     jump() {
         //limit to single jump
         if(!this.main_camera.is_grounded) return;
@@ -412,6 +442,25 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
         return {wall: candidate, is_portal: (is_colliding_with_single_portal && candidate.portal_on.length > 0), is_potential: !is_colliding_with_single_portal && candidate != null && candidate.portal_on.length > 0};
         
+    }
+
+    get_mouse_movements(dt){
+        // let degrees_per_frame = 0.3 * dt;
+        // if(this.prev_center !== null && this.prev_center[0] === this.mouse.from_center[0] && this.prev_center[1] === this.mouse.from_center[1]) {
+        //     this.main_camera.rot_input[0] = 0;
+        //     this.main_camera.rot_input[1] = 0;
+        // } else if (this.mouse.from_center !== undefined && !(this.mouse.from_center[0] === 0 && this.mouse.from_center[1] === 0)) {
+        //     this.main_camera.rot_input[0] = Math.max(this.mouse.from_center[0] * degrees_per_frame * -1, -.6);
+        //     this.main_camera.rot_input[1] = Math.max(this.mouse.from_center[1] * degrees_per_frame * -1, -.6);
+        //     // console.log(this.prev_center, this.mouse.from_center)
+        //     this.prev_center = this.mouse.from_center;
+        // }
+
+        const factor = 70;
+        this.rotate_player(0, - this.mouse.movement[0]/factor)
+        this.rotate_player(1, - this.mouse.movement[1]/factor)
+        this.mouse.movement[0] = 0;
+        this.mouse.movement[1] = 0;
     }
 
     update_player_rotation(dt){
@@ -824,7 +873,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
 
     shoot_projectile(type) {
         //limit shooting to every _ seconds
-        if(this.t - this.last_fired < 1.0) return;
+        if(this.t - this.last_fired < .5) return;
         this.last_fired = this.t;
 
         const color = (type == "orange") ? hex_color("FFA500") : hex_color("0059FF");
@@ -925,16 +974,8 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         // })
         program_state.lights = [new Light(vec4(5, 5, 5, 1), color(1, 1, 1, 1), 10000) /*, ...portal_lights*/];
 
-        let degrees_per_frame = 0.3 * dt;
-        if(this.prev_center !== null && this.prev_center[0] === this.mouse.from_center[0] && this.prev_center[1] === this.mouse.from_center[1]) {
-            this.main_camera.rot_input[0] = 0;
-            this.main_camera.rot_input[1] = 0;
-        } else if (this.mouse.from_center !== undefined && !(this.mouse.from_center[0] === 0 && this.mouse.from_center[1] === 0)) {
-            this.main_camera.rot_input[0] = Math.max(this.mouse.from_center[0] * degrees_per_frame * -1, -.6);
-            this.main_camera.rot_input[1] = Math.max(this.mouse.from_center[1] * degrees_per_frame * -1, -.6);
-            // console.log(this.prev_center, this.mouse.from_center)
-            this.prev_center = this.mouse.from_center;
-        }
+
+        this.get_mouse_movements(dt);
 
         // this.update_y_pos(dt)
         this.update_main_camera(dt);
@@ -954,6 +995,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.draw_visible_scene(context, program_state, t);
         this.draw_portal(context, program_state, this.portal_blue, this.textures.blue_portal_primary.material);
         this.draw_portal(context, program_state, this.portal_orange, this.textures.orange_portal_primary.material);
+        this.draw_cursor(context, program_state);
     }
 
 }
