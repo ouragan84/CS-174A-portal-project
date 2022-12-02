@@ -15,6 +15,7 @@ export class Room_Sandbox extends Scene {
             sphere: new defs.Subdivision_Sphere(4),
             square: new defs.Square
         };
+        
 
         // *** Materials
         this.materials = {
@@ -31,23 +32,165 @@ export class Room_Sandbox extends Scene {
         this.wall_transforms = this.do_walls_calc(Mat4.identity())
         this.ground_transforms = this.do_ground_calc(Mat4.identity(), true)
 
-        this.initial_camera_location = Mat4.look_at(vec3(0, 5, 20), vec3(0, 5, 0), vec3(0, 1, 0));
+        
+
+        // //fps movement
+        // this.yaw = Mat4.identity();
+        // this.pitch = Mat4.identity();
+        
+        // this.sensitivity = 0.2;
+
+        this.eye_vector = vec3(0,5,20);
+        this.look_at_vector = vec3(0,5,0);
+        this.upvector = vec3(0,1,0);
+
+        // (eye vector, at vecotr, up vector)
+        this.initial_camera_location = Mat4.look_at(this.eye_vector, this.look_at_vector, this.upvector);
+
+        // // this.mouse = {"from_center": vec(0,0)};
+        // // this.mouse = vec(0,0);
+
+        // // console.log("mouse from center is ", this.mouse.from_center);
+        //  // fps movement
+        //  const canvas = document.getElementById("main-canvas");
+
+        //  // setting up pointer lock for mouse control
+        //  canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+        //  document.exitPointerLcok = document.exitPointerLock || document.mozExitPointerLock;
+ 
+        //  canvas.onclick = function(){
+        //      console.log("click");
+        //      canvas.requestPointerLock();
+        //  };
+ 
+        
+        //  // fires whenever a change in pointer lock state occurs
+        //  document.addEventListener('pointerlockchange',changeCallback, false);
+        //  document.addEventListener('mozpointerlockchange', changeCallback,false);
+ 
+        //  var mouse_position = function( e ) { console.log("movement ", vec( e.movementX, e.movementY )); return vec( e.movementX, e.movementY ); };
+        //  // if the pointer is locked, then listen to the mousemove and update the camera
+        //  function changeCallback() {
+        //      if (document.pointerLockElement === canvas ||
+        //          document.mozPointerLockElement === canvas) {
+        //            console.log('The pointer lock status is now locked');
+        //            document.addEventListener("mousemove", (e) => {
+        //                this.mouse = mouse_position(e); console.log("mouse position: ", this.mouse)}, false)
+ 
+        //        } else {
+        //            console.log('The pointer lock status is now unlocked');
+        //            document.addEventListener("mouseout", (e) => {
+        //                this.mouse = mouse_position(e);}, false)
+        //          //   this.unlockHook(this.canvas);
+                   
+        //        };
+
+        //     //    console.log("mouse position: ", this.mouse);
+        //  }
+
+    
+ 
+         
+ 
     }
 
     make_control_panel() {
-        // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
+        //fps movement
+        this.yaw = Mat4.identity();
+        this.pitch = Mat4.identity();
+    
+
+        this.mouse = {"from_center": vec(0,0)};
+        // this.mouse = vec(0,0);
+
+        // console.log("mouse from center is ", this.mouse.from_center);
+         // fps movement
+         const canvas = document.getElementById("main-canvas");
+
+         // setting up pointer lock for mouse control
+         canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+         document.exitPointerLcok = document.exitPointerLock || document.mozExitPointerLock;
+ 
+         canvas.onclick = function(){
+             console.log("click");
+             canvas.requestPointerLock();
+         };
+         
+         console.log("mouse from center: ", this.mouse.from_center);
+        
+         // fires whenever a change in pointer lock state occurs
+         document.addEventListener('pointerlockchange',changeCallback, false);
+         document.addEventListener('mozpointerlockchange', changeCallback,false);
+ 
+         var mouse_position = function( e ) { console.log("movement ", vec( e.movementX, e.movementY )); return vec( e.movementX, e.movementY ); };
+         // if the pointer is locked, then listen to the mousemove and update the camera
+         function changeCallback() {
+             if (document.pointerLockElement === canvas ||
+                 document.mozPointerLockElement === canvas) {
+                   console.log('The pointer lock status is now locked');
+                   canvas.addEventListener("mousemove", (e) => {
+                       this.mouse.from_center = mouse_position(e); console.log("mouse position: ", this.mouse.from_center)}, false)
+ 
+               } else {
+                   console.log('The pointer lock status is now unlocked');
+                   canvas.addEventListener("mouseout", (e) => {
+                    this.mouse.from_center = mouse_position(e);}, false)
+                 //   this.unlockHook(this.canvas);
+                   
+               };
+
+            //    console.log("mouse position: ", this.mouse);
+         }
+
+      
+        
     }
+
+    
 
     display(context, program_state) {
         // display():  Called once per frame of animation.
         // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
+        // console.log(`hello`);
+        // console.log("the context is ", context);
+        // console.log("the program state is ", program_state);
+
         if (!context.scratchpad.controls) {
+            console.log("enter context scratchpad");
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
+            console.log("context.scratchpad.controls: ", context.scratchpad.controls);
             // Define the global camera and projection matrices, which are stored in program_state.
             program_state.set_camera(this.initial_camera_location);
         }
+        // console.log("initial camera location: ", this.initial_camera_location);
+        // console.log("eye vector ", this.eye_vector, " look at vector ", this.look_at_vector, " up vector ", this.upvector);
+
+
+       
 
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
+
+        var leeway = 70, degrees_per_frame = 0.004*dt*1000, meters_per_frame = this.sensitivity * dt * 1000;
+
+        if (this.mouse.from_center != undefined){
+
+            // console.log("enter if statement ", this.mouse);
+
+            if(this.mouse.from_center[0] != 0 && this.mouse.from_center[1] !=0){
+
+                console.log("enter the double if statement");
+                this.yaw = (Mat4.rotation(this.mouse.from_center[0]*degrees_per_frame,0,1,0))*(this.yaw);
+                this.pitch = (Mat4.rotation(this.mouse.from_center[1]*degrees_per_frame,1,0,0))*(this.pitch);
+
+                let new_camera = (this.yaw)*(this.pitch)*(this.initial_camera_location);
+                console.log("update camera location: ", program_state.set_camera(new_camera));
+            }
+
+        }
+
+        
+
+        // context.scratchpad.controls.display(context,program_state,t);
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, .1, 1000);
 
