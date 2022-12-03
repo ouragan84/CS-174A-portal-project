@@ -97,9 +97,9 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         this.main_camera.widths = vec3(this.main_camera.side_width, this.main_camera.total_height/2, this.main_camera.side_width);
 
         this.portal_blue = {
-            pos: vec3(5, 1, 0.007),
+            pos: vec3(5, 1, 0.008),
             scale: vec3(1, 1, 1),
-            disp: vec3(0, 0, 0.007),
+            disp: vec3(0, 0, 0.008),
             normal: vec3(0, 0, 1),
             top: vec3(0, 1, 0),
             color_behind: hex_color("#0080FF"),
@@ -122,7 +122,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         }
 
         this.portal_orange = {
-            pos: vec3(0.007, 1, 5),
+            pos: vec3(0.008, 1, 5),
             scale: vec3(1, 1, 1),
             disp: vec3(0, 0, .007),
             normal: vec3(1, 0, 0),
@@ -952,7 +952,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                     if(this.projectiles[i].type === "blue") {
                         if(this.portal_blue.body != null) this.portal_blue.body.portal_on = "";
                         this.portal_blue.body = collision_wall;
-                        this.portal_blue.pos = collision_wall.pos.plus(collision_wall.normal.times(0.007))
+                        this.portal_blue.pos = collision_wall.pos.plus(collision_wall.normal.times(0.008))
                         this.portal_blue.top = vec3(0,1,0); // make it so on floor there
                         this.portal_blue.normal = collision_wall.normal;
                         this.compute_portal_transform(this.portal_blue, this.portal_orange);
@@ -961,7 +961,7 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
                     } else {
                         if(this.portal_orange.body != null) this.portal_orange.body.portal_on = "";
                         this.portal_orange.body = collision_wall;
-                        this.portal_orange.pos = collision_wall.pos.plus(collision_wall.normal.times(0.007))
+                        this.portal_orange.pos = collision_wall.pos.plus(collision_wall.normal.times(0.008))
                         this.portal_orange.top = vec3(0,1,0); // make it so on floor there
                         this.portal_orange.normal = collision_wall.normal;
                         this.compute_portal_transform(this.portal_orange, this.portal_blue);
