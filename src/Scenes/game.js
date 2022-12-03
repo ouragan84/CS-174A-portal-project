@@ -482,11 +482,11 @@ export class Game extends Scene {                   // **Scene_To_Texture_Demo**
         // console.log("col_cent ", col_cent)
 
         const floor_collide = this.get_player_side_collision(vec3(0,-1,0), 
-            col_cent.plus(vec3(0,-this.main_camera.widths[1],0)), this.main_camera.widths, 0.01, 0.75);
+            col_cent, this.main_camera.widths);
         this.main_camera.is_grounded = floor_collide.wall != null;
 
         const ceil_collide = this.get_player_side_collision(vec3(0,1,0), 
-        col_cent.plus(vec3(0,this.main_camera.widths[1],0)), this.main_camera.widths, 0.01, 0.75);
+        col_cent, this.main_camera.widths);
         const is_ceiled = ceil_collide.wall != null;
 
         if(this.main_camera.is_grounded && this.main_camera.velocity[1] <= 0){
